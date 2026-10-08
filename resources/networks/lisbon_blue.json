@@ -1,0 +1,20 @@
+{
+  "id": "lisbon_blue",
+  "name": "里斯本蓝线（简化）",
+  "city": "里斯本",
+  "difficulty": 1,
+  "stations": [
+    {"id": 0, "name": "Reboleira", "x": 140, "y": 260, "capacity": 120},
+    {"id": 1, "name": "Amadora Este", "x": 280, "y": 300, "capacity": 120},
+    {"id": 2, "name": "Alfornelos", "x": 400, "y": 360, "capacity": 120},
+    {"id": 3, "name": "Pontinha", "x": 500, "y": 430, "capacity": 130},
+    {"id": 4, "name": "Jardim Zoológico", "x": 620, "y": 480, "capacity": 140},
+    {"id": 5, "name": "São Sebastião", "x": 780, "y": 520, "capacity": 150},
+    {"id": 6, "name": "Marquês de Pombal", "x": 900, "y": 470, "capacity": 140},
+    {"id": 7, "name": "Baixa-Chiado", "x": 980, "y": 360, "capacity": 140},
+    {"id": 8, "name": "Terreiro do Paço", "x": 1040, "y": 240, "capacity": 150}
+  ],
+  "lines": [
+    {"id": 0, "name": "蓝线", "color": "#1e90ff", "headway": 13.0, "speed": 120.0, "station_ids": [0, 1, 2, 3, 4, 5, 6, 7, 8]}
+  ]
+}

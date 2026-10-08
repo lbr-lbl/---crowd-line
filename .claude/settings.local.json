@@ -1,0 +1,35 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/Administrator/Desktop/godot//**)",
+      "Read(//c/Users/Administrator/Desktop//**)",
+      "Read(//c/Users/Administrator/**)",
+      "Read(//c/Users/Administrator/Downloads/**)",
+      "Bash(/d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --version)",
+      "Bash(/d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --import)",
+      "Bash(/d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless -- --autotest --quit-after 900)",
+      "Bash(echo \"=== done \\(exit $?\\) ===\")",
+      "Bash(timeout 60 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 -- --autotest --quit-after 300)",
+      "Bash(echo \"exit=$?\")",
+      "Read(//tmp/**)",
+      "Bash(timeout 60 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --quit-after 300 -- --autotest)",
+      "Bash(timeout 40 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --quit-after 400 -- --autotest)",
+      "Bash(timeout 40 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --quit-after 400 -- --autotest-hk)",
+      "Bash(timeout 60 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --quit-after 700 -- --autotest)",
+      "Bash(timeout 60 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless --fixed-fps 60 --quit-after 700 -- --autotest-hk)",
+      "Bash(timeout 90 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless -- --autotest)",
+      "Bash(timeout 120 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --headless -- --autotest-hk)",
+      "Bash(timeout 40 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --quit-after 150 -- --autotest-render)",
+      "Bash(echo \"=== import clean \\(exit $?\\) ===\")",
+      "Bash(timeout 40 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --quit-after 120 -- --shot)",
+      "Bash(ls -la _shot.png)",
+      "Bash(file _shot.png)",
+      "Bash(python3 -c \"from PIL import Image; im=Image.open\\('_shot.png'\\); print\\(im.size, im.mode\\)\")",
+      "Bash(ls -la _shot.png _shot.jpg)",
+      "Bash(rm -f _shot.png _shot.jpg)",
+      "Bash(ls _shot*)",
+      "Bash(timeout 40 /d/下载/Godot_v4.7.2-stable_win64.exe/Godot_v4.7.2-stable_win64_console.exe --quit-after 150 -- --gamecheck)",
+      "Bash(echo \"game render exit=$?\")"
+    ]
+  }
+}

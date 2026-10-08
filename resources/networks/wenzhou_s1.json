@@ -1,0 +1,25 @@
+{
+  "id": "wenzhou_s1",
+  "name": "温州 S1 线",
+  "city": "温州",
+  "difficulty": 1,
+  "stations": [
+    {"id": 0, "name": "桐岭", "x": 160, "y": 480, "capacity": 120},
+    {"id": 1, "name": "动车南", "x": 380, "y": 420, "capacity": 160},
+    {"id": 2, "name": "新桥", "x": 540, "y": 380, "capacity": 120},
+    {"id": 3, "name": "惠民路", "x": 700, "y": 350, "capacity": 140},
+    {"id": 4, "name": "三垟湿地", "x": 860, "y": 360, "capacity": 120},
+    {"id": 5, "name": "奥体中心", "x": 1040, "y": 430, "capacity": 140},
+    {"id": 6, "name": "灵昆", "x": 1260, "y": 520, "capacity": 120}
+  ],
+  "lines": [
+    {
+      "id": 0,
+      "name": "S1",
+      "color": "#00e5ff",
+      "headway": 12.0,
+      "speed": 120.0,
+      "station_ids": [0, 1, 2, 3, 4, 5, 6]
+    }
+  ]
+}

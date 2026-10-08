@@ -1,0 +1,25 @@
+{
+  "id": "chongqing_net",
+  "name": "重庆三线（简化）",
+  "city": "重庆",
+  "difficulty": 3,
+  "stations": [
+    {"id": 0, "name": "朝天门", "x": 200, "y": 180, "capacity": 130},
+    {"id": 1, "name": "较场口", "x": 330, "y": 240, "capacity": 140},
+    {"id": 2, "name": "大坪", "x": 460, "y": 300, "capacity": 160},
+    {"id": 3, "name": "石桥铺", "x": 600, "y": 360, "capacity": 150},
+    {"id": 4, "name": "杨家坪", "x": 720, "y": 420, "capacity": 140},
+    {"id": 5, "name": "谢家湾", "x": 840, "y": 470, "capacity": 160},
+    {"id": 6, "name": "两路口", "x": 380, "y": 440, "capacity": 150},
+    {"id": 7, "name": "李子坝", "x": 560, "y": 520, "capacity": 130},
+    {"id": 8, "name": "观音桥", "x": 680, "y": 560, "capacity": 150},
+    {"id": 9, "name": "沙坪坝", "x": 500, "y": 180, "capacity": 160},
+    {"id": 10, "name": "磁器口", "x": 640, "y": 220, "capacity": 140},
+    {"id": 11, "name": "江北城", "x": 760, "y": 340, "capacity": 150}
+  ],
+  "lines": [
+    {"id": 0, "name": "1号线", "color": "#f44336", "headway": 15.0, "speed": 120.0, "station_ids": [0, 1, 2, 3, 4, 5]},
+    {"id": 1, "name": "2号线", "color": "#43a047", "headway": 16.0, "speed": 110.0, "station_ids": [6, 2, 7, 8]},
+    {"id": 2, "name": "3号线", "color": "#ffd600", "headway": 16.0, "speed": 115.0, "station_ids": [9, 10, 11, 3, 5]}
+  ]
+}

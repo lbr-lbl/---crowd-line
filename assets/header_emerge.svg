@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" width="1600" height="600" font-family="'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#141430"/>
+      <stop offset="45%"  stop-color="#1c1533"/>
+      <stop offset="75%"  stop-color="#14213a"/>
+      <stop offset="100%" stop-color="#0e0e1e"/>
+    </linearGradient>
+
+    <!-- 众的色彩：核部恐慌紫 → 拥堵红 → 等待黄 → 正常绿 -->
+    <radialGradient id="crowdGrad" gradientUnits="userSpaceOnUse" cx="800" cy="330" r="270">
+      <stop offset="0%"   stop-color="#c084fc"/>
+      <stop offset="38%"  stop-color="#ff5c5c"/>
+      <stop offset="68%"  stop-color="#ffd23f"/>
+      <stop offset="100%" stop-color="#4ade80"/>
+    </radialGradient>
+
+    <radialGradient id="haloGrad" gradientUnits="userSpaceOnUse" cx="800" cy="330" r="330">
+      <stop offset="0%"   stop-color="#7c3aed" stop-opacity="0.40"/>
+      <stop offset="60%"  stop-color="#4c1d95" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#141430" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- 点阵冲孔：盖在渐变字上，变成"人群点云" -->
+    <pattern id="dotPunch" width="16" height="16" patternUnits="userSpaceOnUse">
+      <circle cx="8" cy="8" r="5.6" fill="#0c0c1e" fill-opacity="0.96"/>
+    </pattern>
+
+    <filter id="softGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="3.5" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============ 背景 ============ -->
+  <rect width="1600" height="600" fill="url(#bgGrad)"/>
+  <line x1="0" y1="76"  x2="1600" y2="76"  stroke="#c084fc" stroke-opacity="0.14" stroke-width="1"/>
+  <line x1="0" y1="546" x2="1600" y2="546" stroke="#4ade80" stroke-opacity="0.12" stroke-width="1"/>
+  <g stroke="#3a3a55" stroke-opacity="0.10" stroke-width="0.5">
+    <line x1="100" y1="0" x2="100" y2="600"/><line x1="300" y1="0" x2="300" y2="600"/>
+    <line x1="500" y1="0" x2="500" y2="600"/><line x1="700" y1="0" x2="700" y2="600"/>
+    <line x1="900" y1="0" x2="900" y2="600"/><line x1="1100" y1="0" x2="1100" y2="600"/>
+    <line x1="1300" y1="0" x2="1300" y2="600"/><line x1="1500" y1="0" x2="1500" y2="600"/>
+  </g>
+
+  <!-- ============ 中心辉光 ============ -->
+  <circle cx="800" cy="330" r="330" fill="url(#haloGrad)"/>
+
+  <!-- ============ 放射线路（8 条） ============ -->
+  <g stroke-linecap="round">
+    <g stroke-opacity="0.16" stroke-width="12">
+      <line x1="1005" y1="330" x2="1375" y2="330" stroke="#00e5ff"/>
+      <line x1="800"  y1="535" x2="800"  y2="905" stroke="#00e5ff"/>
+      <line x1="595"  y1="330" x2="225"  y2="330" stroke="#00e5ff"/>
+      <line x1="800"  y1="125" x2="800"  y2="-245" stroke="#00e5ff"/>
+      <line x1="941"  y1="471" x2="1207" y2="737" stroke="#ff2d78"/>
+      <line x1="659"  y1="471" x2="393"  y2="737" stroke="#ff2d78"/>
+      <line x1="659"  y1="189" x2="393"  y2="-77" stroke="#ff2d78"/>
+      <line x1="941"  y1="189" x2="1207" y2="-77" stroke="#ff2d78"/>
+    </g>
+    <g stroke-width="3.5">
+      <line x1="1005" y1="330" x2="1375" y2="330" stroke="#00e5ff"/>
+      <line x1="800"  y1="535" x2="800"  y2="905" stroke="#00e5ff"/>
+      <line x1="595"  y1="330" x2="225"  y2="330" stroke="#00e5ff"/>
+      <line x1="800"  y1="125" x2="800"  y2="-245" stroke="#00e5ff"/>
+      <line x1="941"  y1="471" x2="1207" y2="737" stroke="#ff2d78"/>
+      <line x1="659"  y1="471" x2="393"  y2="737" stroke="#ff2d78"/>
+      <line x1="659"  y1="189" x2="393"  y2="-77" stroke="#ff2d78"/>
+      <line x1="941"  y1="189" x2="1207" y2="-77" stroke="#ff2d78"/>
+    </g>
+  </g>
+
+  <!-- 线路上流动的乘客点（内段红=受扰，外段绿=恢复） -->
+  <g stroke-width="4.5" stroke-dasharray="0.1 13" stroke-linecap="round">
+    <line x1="1020" y1="330" x2="1130" y2="330" stroke="#ff5c5c"/>
+    <line x1="1130" y1="330" x2="1375" y2="330" stroke="#4ade80"/>
+    <line x1="800"  y1="550" x2="800"  y2="660" stroke="#ff5c5c"/>
+    <line x1="800"  y1="660" x2="800"  y2="905" stroke="#4ade80"/>
+    <line x1="580"  y1="330" x2="470"  y2="330" stroke="#ff5c5c"/>
+    <line x1="470"  y1="330" x2="225"  y2="330" stroke="#4ade80"/>
+    <line x1="800"  y1="110" x2="800"  y2="0"   stroke="#ff5c5c"/>
+    <line x1="800"  y1="0"   x2="800"  y2="-245" stroke="#4ade80"/>
+    <line x1="956"  y1="486" x2="1033" y2="563" stroke="#ff5c5c"/>
+    <line x1="1033" y1="563" x2="1207" y2="737" stroke="#4ade80"/>
+    <line x1="644"  y1="486" x2="567"  y2="563" stroke="#ff5c5c"/>
+    <line x1="567"  y1="563" x2="393"  y2="737" stroke="#4ade80"/>
+    <line x1="644"  y1="174" x2="567"  y2="97"  stroke="#ff5c5c"/>
+    <line x1="567"  y1="97"  x2="393"  y2="-77" stroke="#4ade80"/>
+    <line x1="956"  y1="174" x2="1033" y2="97"  stroke="#ff5c5c"/>
+    <line x1="1033" y1="97"  x2="1207" y2="-77" stroke="#4ade80"/>
+  </g>
+
+  <!-- 列车 -->
+  <g>
+    <g transform="translate(1160,330)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00e5ff"/>
+      <circle r="3" fill="#0e0e1e"/>
+    </g>
+    <g transform="translate(440,330)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00e5ff"/>
+      <circle r="3" fill="#0e0e1e"/>
+    </g>
+    <g transform="translate(1080,600) rotate(45)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#ff2d78"/>
+      <circle r="3" fill="#0e0e1e"/>
+    </g>
+    <g transform="translate(800,600) rotate(90)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00e5ff"/>
+      <circle r="3" fill="#0e0e1e"/>
+    </g>
+  </g>
+
+  <!-- ============ 涌现：从"触发点"荡开的涟漪 ============ -->
+  <g fill="none" stroke="#c084fc" stroke-width="5" stroke-dasharray="0.1 18" stroke-linecap="round">
+    <circle cx="956" cy="486" r="70"  stroke-opacity="0.55"/>
+    <circle cx="956" cy="486" r="140" stroke-opacity="0.38"/>
+    <circle cx="956" cy="486" r="220" stroke-opacity="0.24"/>
+    <circle cx="956" cy="486" r="310" stroke-opacity="0.14"/>
+    <circle cx="956" cy="486" r="410" stroke-opacity="0.08"/>
+  </g>
+
+  <!-- 触发点：某一站的短暂延误 -->
+  <g>
+    <circle cx="956" cy="486" r="9" fill="#0e0e1e" stroke="#ffffff" stroke-width="3"/>
+    <line x1="951" y1="481" x2="961" y2="491" stroke="#ff5c5c" stroke-width="3" stroke-linecap="round"/>
+    <line x1="961" y1="481" x2="951" y2="491" stroke="#ff5c5c" stroke-width="3" stroke-linecap="round"/>
+    <text x="982" y="512" font-size="14" fill="#ffb3c9" opacity="0.9">某一站 · 延误了一下</text>
+  </g>
+
+  <!-- ============ 大"涌"：人群点云构成 ============ -->
+  <g filter="url(#softGlow)">
+    <text x="800" y="488" text-anchor="middle" font-size="440"
+          font-family="'Noto Serif SC','Source Han Serif SC','SimSun','MS SongTi',serif"
+          font-weight="700" fill="url(#crowdGrad)">涌</text>
+    <text x="800" y="488" text-anchor="middle" font-size="440"
+          font-family="'Noto Serif SC','Source Han Serif SC','SimSun','MS SongTi',serif"
+          font-weight="700" fill="url(#dotPunch)">涌</text>
+  </g>
+
+  <!-- 字旁散落的游离乘客点 -->
+  <g fill-opacity="0.85">
+    <circle cx="588" cy="148" r="3"   fill="#4ade80"/>
+    <circle cx="1010" cy="150" r="3.2" fill="#ffd23f"/>
+    <circle cx="1042" cy="392" r="3"   fill="#ff5c5c"/>
+    <circle cx="575"  cy="398" r="3.4" fill="#c084fc"/>
+    <circle cx="806"  cy="552" r="3.2" fill="#ffd23f"/>
+    <circle cx="592"  cy="262" r="2.6" fill="#ffd23f"/>
+    <circle cx="1012" cy="262" r="2.6" fill="#ff5c5c"/>
+  </g>
+
+  <!-- ============ 左上标题 ============ -->
+  <g>
+    <text x="64" y="118" font-size="58" font-weight="700" fill="#ffffff" letter-spacing="4">涌现</text>
+    <text x="66" y="150" font-size="17" fill="#c084fc" letter-spacing="8">E M E R G E</text>
+    <text x="66" y="178" font-size="15" fill="#aab3d6">简单规则，长出复杂形态</text>
+  </g>
+
+  <!-- ============ 右侧说明卡：涌现如何发生 ============ -->
+  <g transform="translate(1150,96)">
+    <rect x="0" y="0" width="400" height="372" rx="14" fill="#0e0e1e" fill-opacity="0.82" stroke="#4a3a78" stroke-width="1.5"/>
+    <text x="24" y="38" font-size="16" fill="#c9a8ff" letter-spacing="3">涌现如何发生</text>
+    <line x1="24" y1="52" x2="376" y2="52" stroke="#4a3a78" stroke-width="1"/>
+
+    <g font-size="15" fill="#e6ecf8">
+      <text x="24" y="88">① 局部规则</text>
+      <text x="24" y="110" font-size="13" fill="#9aa5c5">耐心 · 从众 · 拥堵 —— 每个人只做最简单的选择</text>
+
+      <text x="24" y="150">② 彼此耦合</text>
+      <text x="24" y="172" font-size="13" fill="#9aa5c5">上车 · 换乘 · 延误传播 —— 人推人，延误推延误</text>
+
+      <text x="24" y="212">③ 整体涌现</text>
+      <text x="24" y="234" font-size="13" fill="#9aa5c5">恐慌波 · 人潮自疏解 · 高峰自成形</text>
+      <text x="24" y="256" font-size="13" fill="#9aa5c5">没有人设计它，它自己长出来</text>
+    </g>
+
+    <line x1="24" y1="282" x2="376" y2="282" stroke="#4a3a78" stroke-width="1"/>
+    <text x="24" y="316" font-size="16" fill="#4ade80" font-weight="700">你只调规则，人潮会涌现。</text>
+    <text x="24" y="346" font-size="12" fill="#7d88ad" letter-spacing="2">CROWD EMERGENCE · MINI METRO FEEL</text>
+  </g>
+
+  <!-- ============ 底部主句 ============ -->
+  <text x="620" y="585" text-anchor="middle" font-size="17" fill="#e6ecf8" opacity="0.95">
+    一个站的一次延误  <tspan fill="#c084fc">→</tspan>  整张网的涟漪  <tspan fill="#c084fc">→</tspan>  人潮自己流动、自己疏解
+  </text>
+</svg>

@@ -1,0 +1,44 @@
+{
+  "id": "hongkong_tw_kt",
+  "name": "香港 荃湾线 + 观塘线",
+  "city": "香港",
+  "difficulty": 2,
+  "stations": [
+    {"id": 0, "name": "荃湾", "x": 200, "y": 180, "capacity": 130},
+    {"id": 1, "name": "葵兴", "x": 300, "y": 260, "capacity": 120},
+    {"id": 2, "name": "荔景", "x": 360, "y": 340, "capacity": 120},
+    {"id": 3, "name": "美孚", "x": 420, "y": 420, "capacity": 130},
+    {"id": 4, "name": "深水埗", "x": 480, "y": 500, "capacity": 130},
+    {"id": 5, "name": "太子", "x": 540, "y": 560, "capacity": 180},
+    {"id": 6, "name": "旺角", "x": 600, "y": 620, "capacity": 180},
+    {"id": 7, "name": "尖沙咀", "x": 640, "y": 700, "capacity": 140},
+    {"id": 8, "name": "金钟", "x": 600, "y": 780, "capacity": 150},
+    {"id": 9, "name": "中环", "x": 540, "y": 850, "capacity": 140},
+    {"id": 10, "name": "调景岭", "x": 1180, "y": 380, "capacity": 120},
+    {"id": 11, "name": "观塘", "x": 1060, "y": 430, "capacity": 130},
+    {"id": 12, "name": "九龙湾", "x": 950, "y": 480, "capacity": 120},
+    {"id": 13, "name": "彩虹", "x": 850, "y": 530, "capacity": 120},
+    {"id": 14, "name": "九龙塘", "x": 750, "y": 580, "capacity": 140},
+    {"id": 15, "name": "石硖尾", "x": 650, "y": 600, "capacity": 120},
+    {"id": 16, "name": "油麻地", "x": 610, "y": 680, "capacity": 140},
+    {"id": 17, "name": "黄埔", "x": 570, "y": 760, "capacity": 120}
+  ],
+  "lines": [
+    {
+      "id": 0,
+      "name": "荃湾线",
+      "color": "#ff2d78",
+      "headway": 13.0,
+      "speed": 120.0,
+      "station_ids": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    },
+    {
+      "id": 1,
+      "name": "观塘线",
+      "color": "#00ff88",
+      "headway": 13.0,
+      "speed": 120.0,
+      "station_ids": [10, 11, 12, 13, 14, 15, 5, 6, 16, 17]
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "taipei_cross",
+  "name": "台北十字线（简化）",
+  "city": "台北",
+  "difficulty": 2,
+  "stations": [
+    {"id": 0, "name": "淡水", "x": 620, "y": 110, "capacity": 130},
+    {"id": 1, "name": "北投", "x": 632, "y": 200, "capacity": 120},
+    {"id": 2, "name": "士林", "x": 640, "y": 280, "capacity": 130},
+    {"id": 3, "name": "台北车站", "x": 640, "y": 360, "capacity": 190},
+    {"id": 4, "name": "中正纪念堂", "x": 640, "y": 440, "capacity": 140},
+    {"id": 5, "name": "台北101/世贸", "x": 640, "y": 520, "capacity": 150},
+    {"id": 6, "name": "顶埔", "x": 320, "y": 360, "capacity": 120},
+    {"id": 7, "name": "板桥", "x": 430, "y": 360, "capacity": 140},
+    {"id": 8, "name": "龙山寺", "x": 540, "y": 360, "capacity": 130},
+    {"id": 9, "name": "忠孝复兴", "x": 740, "y": 360, "capacity": 140},
+    {"id": 10, "name": "市政府", "x": 850, "y": 360, "capacity": 140},
+    {"id": 11, "name": "南港展览馆", "x": 940, "y": 360, "capacity": 130}
+  ],
+  "lines": [
+    {"id": 0, "name": "淡水信义线", "color": "#ff2d78", "headway": 12.0, "speed": 115.0, "station_ids": [0, 1, 2, 3, 4, 5]},
+    {"id": 1, "name": "板南线", "color": "#0090ff", "headway": 13.0, "speed": 115.0, "station_ids": [6, 7, 8, 3, 9, 10, 11]}
+  ]
+}
