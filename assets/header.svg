@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 600" width="1600" height="600" font-family="'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif">
+  <!-- ============ 背景渐变 ============ -->
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#3e1a1a"/>
+      <stop offset="35%"  stop-color="#1c1c34"/>
+      <stop offset="65%"  stop-color="#1e2a3e"/>
+      <stop offset="100%" stop-color="#0e0e1e"/>
+    </linearGradient>
+
+    <radialGradient id="panicHalo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#c084fc" stop-opacity="0.55"/>
+      <stop offset="50%"  stop-color="#7c3aed" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#1e1a3a" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="crowdGlow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0%"   stop-color="#ff5c5c" stop-opacity="0.45"/>
+      <stop offset="55%"  stop-color="#ffd23f" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#3e1a1a" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="lineCyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#00e5ff" stop-opacity="0.25"/>
+      <stop offset="50%"  stop-color="#00e5ff" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.25"/>
+    </linearGradient>
+    <linearGradient id="linePink" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#ff2d78" stop-opacity="0.25"/>
+      <stop offset="50%"  stop-color="#ff2d78" stop-opacity="1"/>
+      <stop offset="100%" stop-color="#ff2d78" stop-opacity="0.25"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============ 主背景 ============ -->
+  <rect width="1600" height="600" fill="url(#bgGrad)"/>
+
+  <!-- 顶部细横线（Mini Metro 风格地铁感） -->
+  <line x1="0" y1="78"  x2="1600" y2="78"  stroke="#00e5ff" stroke-opacity="0.18" stroke-width="1"/>
+  <line x1="0" y1="540" x2="1600" y2="540" stroke="#ff2d78" stroke-opacity="0.18" stroke-width="1"/>
+
+  <!-- 远处轻微网格，模拟地铁图底 -->
+  <g stroke="#3a3a55" stroke-opacity="0.12" stroke-width="0.5">
+    <g id="gridV">
+      <line x1="80"   y1="0" x2="80"   y2="600"/>
+      <line x1="160"  y1="0" x2="160"  y2="600"/>
+      <line x1="240"  y1="0" x2="240"  y2="600"/>
+      <line x1="320"  y1="0" x2="320"  y2="600"/>
+      <line x1="400"  y1="0" x2="400"  y2="600"/>
+      <line x1="480"  y1="0" x2="480"  y2="600"/>
+      <line x1="560"  y1="0" x2="560"  y2="600"/>
+      <line x1="640"  y1="0" x2="640"  y2="600"/>
+      <line x1="720"  y1="0" x2="720"  y2="600"/>
+      <line x1="800"  y1="0" x2="800"  y2="600"/>
+      <line x1="880"  y1="0" x2="880"  y2="600"/>
+      <line x1="960"  y1="0" x2="960"  y2="600"/>
+      <line x1="1040" y1="0" x2="1040" y2="600"/>
+      <line x1="1120" y1="0" x2="1120" y2="600"/>
+      <line x1="1200" y1="0" x2="1200" y2="600"/>
+      <line x1="1280" y1="0" x2="1280" y2="600"/>
+      <line x1="1360" y1="0" x2="1360" y2="600"/>
+      <line x1="1440" y1="0" x2="1440" y2="600"/>
+      <line x1="1520" y1="0" x2="1520" y2="600"/>
+    </g>
+  </g>
+
+  <!-- ============ 左段：「涌」成分云 ============ -->
+  <!-- 红色拥堵光晕（中心压力源） -->
+  <circle cx="220" cy="320" r="180" fill="url(#crowdGlow)"/>
+  <!-- 紫色恐慌光晕 -->
+  <circle cx="180" cy="300" r="120" fill="url(#panicHalo)"/>
+
+  <!-- 喷涌的乘客圆点（按 GOLDEN_ANGLE 散布，越靠中心越密） -->
+  <g filter="url(#softGlow)">
+    <!-- 内圈：恐慌紫 + 拥堵红 -->
+    <circle cx="220" cy="320" r="3.5" fill="#c084fc"/>
+    <circle cx="206" cy="312" r="3.2" fill="#c084fc"/>
+    <circle cx="232" cy="332" r="3.4" fill="#ff5c5c"/>
+    <circle cx="195" cy="298" r="3.1" fill="#c084fc"/>
+    <circle cx="245" cy="345" r="3.0" fill="#ff5c5c"/>
+    <circle cx="178" cy="285" r="2.9" fill="#c084fc"/>
+    <circle cx="262" cy="358" r="3.2" fill="#ff5c5c"/>
+    <circle cx="160" cy="275" r="2.8" fill="#c084fc"/>
+    <circle cx="280" cy="372" r="3.0" fill="#ff5c5c"/>
+    <circle cx="145" cy="262" r="2.6" fill="#ffd23f"/>
+    <circle cx="298" cy="385" r="2.8" fill="#ffd23f"/>
+    <circle cx="130" cy="250" r="2.5" fill="#ffd23f"/>
+    <circle cx="316" cy="398" r="2.7" fill="#ffd23f"/>
+    <circle cx="115" cy="235" r="2.4" fill="#4ade80"/>
+    <circle cx="334" cy="412" r="2.6" fill="#4ade80"/>
+
+    <!-- 中圈：等待黄 -->
+    <circle cx="334" cy="262" r="2.3" fill="#ffd23f"/>
+    <circle cx="120" cy="380" r="2.3" fill="#ffd23f"/>
+    <circle cx="100" cy="205" r="2.1" fill="#ffd23f"/>
+    <circle cx="356" cy="438" r="2.4" fill="#ffd23f"/>
+    <circle cx="85"  cy="180" r="2.0" fill="#ffd23f"/>
+    <circle cx="378" cy="465" r="2.2" fill="#ffd23f"/>
+
+    <!-- 外圈：正常绿（向远处铺开，像涌出去的波） -->
+    <circle cx="60"  cy="160" r="2.0" fill="#4ade80"/>
+    <circle cx="45"  cy="195" r="1.9" fill="#4ade80"/>
+    <circle cx="30"  cy="240" r="1.8" fill="#4ade80"/>
+    <circle cx="25"  cy="290" r="1.8" fill="#4ade80"/>
+    <circle cx="32"  cy="345" r="1.9" fill="#4ade80"/>
+    <circle cx="48"  cy="395" r="1.9" fill="#4ade80"/>
+    <circle cx="75"  cy="445" r="2.0" fill="#4ade80"/>
+    <circle cx="110" cy="480" r="2.0" fill="#4ade80"/>
+    <circle cx="150" cy="500" r="2.0" fill="#4ade80"/>
+    <circle cx="195" cy="510" r="2.1" fill="#4ade80"/>
+    <circle cx="240" cy="515" r="2.1" fill="#4ade80"/>
+    <circle cx="290" cy="510" r="2.0" fill="#4ade80"/>
+    <circle cx="335" cy="495" r="2.0" fill="#4ade80"/>
+    <circle cx="375" cy="475" r="1.9" fill="#4ade80"/>
+    <circle cx="405" cy="448" r="1.9" fill="#4ade80"/>
+    <circle cx="80"  cy="135" r="1.8" fill="#4ade80"/>
+    <circle cx="125" cy="115" r="1.8" fill="#4ade80"/>
+    <circle cx="170" cy="105" r="1.8" fill="#4ade80"/>
+    <circle cx="220" cy="100" r="1.8" fill="#4ade80"/>
+    <circle cx="275" cy="110" r="1.8" fill="#4ade80"/>
+    <circle cx="325" cy="125" r="1.8" fill="#4ade80"/>
+    <circle cx="370" cy="150" r="1.8" fill="#4ade80"/>
+    <circle cx="400" cy="190" r="1.9" fill="#4ade80"/>
+    <circle cx="420" cy="240" r="2.0" fill="#4ade80"/>
+    <circle cx="428" cy="290" r="2.0" fill="#4ade80"/>
+    <circle cx="422" cy="340" r="2.0" fill="#4ade80"/>
+  </g>
+
+  <!-- 左段小字 -->
+  <text x="60" y="555" font-size="14" fill="#c084fc" opacity="0.85" letter-spacing="2">CROWD · 涌现</text>
+
+  <!-- ============ 中段：调度者视角（线路+列车） ============ -->
+  <g transform="translate(560,0)">
+    <!-- 青线 #00e5ff：从 (40,180) 到 (920,360) 的弯折 -->
+    <path d="M 60 180 L 280 180 L 280 280 L 460 280 L 460 380 L 880 380"
+          fill="none" stroke="#00e5ff" stroke-opacity="0.25" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 60 180 L 280 180 L 280 280 L 460 280 L 460 380 L 880 380"
+          fill="none" stroke="#00e5ff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- 品红线 #ff2d78：从 (60,440) 斜上到 (880,200) -->
+    <path d="M 60 460 L 220 380 L 460 380 L 460 280 L 640 240 L 880 200"
+          fill="none" stroke="#ff2d78" stroke-opacity="0.25" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 60 460 L 220 380 L 460 380 L 460 280 L 640 240 L 880 200"
+          fill="none" stroke="#ff2d78" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- 站点 -->
+    <g>
+      <circle cx="60"  cy="180" r="7" fill="#0e0e1e" stroke="#00e5ff" stroke-width="3"/>
+      <circle cx="280" cy="180" r="7" fill="#0e0e1e" stroke="#00e5ff" stroke-width="3"/>
+      <circle cx="280" cy="280" r="7" fill="#0e0e1e" stroke="#00e5ff" stroke-width="3"/>
+      <circle cx="460" cy="280" r="9" fill="#0e0e1e" stroke="#ffffff" stroke-width="3"/>
+      <circle cx="460" cy="380" r="9" fill="#0e0e1e" stroke="#ffffff" stroke-width="3"/>
+      <circle cx="880" cy="380" r="7" fill="#0e0e1e" stroke="#00e5ff" stroke-width="3"/>
+
+      <circle cx="60"  cy="460" r="7" fill="#0e0e1e" stroke="#ff2d78" stroke-width="3"/>
+      <circle cx="220" cy="380" r="7" fill="#0e0e1e" stroke="#ff2d78" stroke-width="3"/>
+      <circle cx="640" cy="240" r="7" fill="#0e0e1e" stroke="#ff2d78" stroke-width="3"/>
+      <circle cx="880" cy="200" r="7" fill="#0e0e1e" stroke="#ff2d78" stroke-width="3"/>
+    </g>
+
+    <!-- 列车（在两条线路上各一辆，用矩形+阴影近似车体） -->
+    <!-- 青线列车 -->
+    <g transform="translate(370,280)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#00e5ff"/>
+      <circle cx="0" cy="0" r="3" fill="#0e0e1e"/>
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1"/>
+    </g>
+    <!-- 品红线列车 -->
+    <g transform="translate(340,380)">
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="#ff2d78"/>
+      <circle cx="0" cy="0" r="3" fill="#0e0e1e"/>
+      <rect x="-14" y="-8" width="28" height="16" rx="3" fill="none" stroke="#ffffff" stroke-opacity="0.4" stroke-width="1"/>
+    </g>
+
+    <!-- 换乘站小标签 -->
+    <text x="460" y="270" text-anchor="middle" font-size="12" fill="#ffffff" opacity="0.75">中央广场</text>
+    <text x="460" y="402" text-anchor="middle" font-size="12" fill="#ffffff" opacity="0.75">换乘</text>
+  </g>
+
+  <!-- ============ 标题文字 ============ -->
+  <g transform="translate(80,128)">
+    <text x="0" y="0" font-size="64" font-weight="700" fill="#ffffff" letter-spacing="2">涌线</text>
+    <text x="200" y="-2" font-size="20" font-style="italic" fill="#c084fc" opacity="0.9">crowd line</text>
+    <text x="0" y="38" font-size="18" fill="#dfe6f5" opacity="0.85">涌现式地铁调度沙盒</text>
+    <text x="0" y="62" font-size="13" fill="#9aa5c5" letter-spacing="3" opacity="0.75">CROWD-DRIVEN TRANSIT DISPATCH · GODOT 4.7</text>
+  </g>
+
+  <!-- ============ 右段：评分卡片 ============ -->
+  <g transform="translate(1280,110)">
+    <!-- 卡片底 -->
+    <rect x="0" y="0" width="290" height="380" rx="14" fill="#0e0e1e" fill-opacity="0.78" stroke="#3a4a78" stroke-width="1.5"/>
+
+    <!-- 标题 -->
+    <text x="20" y="34" font-size="14" fill="#7fa9ff" letter-spacing="3">运营指标</text>
+    <line x1="20" y1="46" x2="270" y2="46" stroke="#3a4a78" stroke-width="1"/>
+
+    <!-- 五项指标 -->
+    <g font-size="15" fill="#e6ecf8">
+      <text x="20" y="78">准点率</text>
+      <text x="270" y="78" text-anchor="end" fill="#4ade80">92%</text>
+      <rect x="20" y="84" width="250" height="4" rx="2" fill="#1c2030"/>
+      <rect x="20" y="84" width="230" height="4" rx="2" fill="#4ade80"/>
+
+      <text x="20" y="118">满意度</text>
+      <text x="270" y="118" text-anchor="end" fill="#4ade80">85%</text>
+      <rect x="20" y="124" width="250" height="4" rx="2" fill="#1c2030"/>
+      <rect x="20" y="124" width="213" height="4" rx="2" fill="#4ade80"/>
+
+      <text x="20" y="158">吞吐量</text>
+      <text x="270" y="158" text-anchor="end" fill="#ffd23f">76%</text>
+      <rect x="20" y="164" width="250" height="4" rx="2" fill="#1c2030"/>
+      <rect x="20" y="164" width="190" height="4" rx="2" fill="#ffd23f"/>
+
+      <text x="20" y="198">安全分</text>
+      <text x="270" y="198" text-anchor="end" fill="#4ade80">88%</text>
+      <rect x="20" y="204" width="250" height="4" rx="2" fill="#1c2030"/>
+      <rect x="20" y="204" width="220" height="4" rx="2" fill="#4ade80"/>
+
+      <text x="20" y="238">效率分</text>
+      <text x="270" y="238" text-anchor="end" fill="#4ade80">81%</text>
+      <rect x="20" y="244" width="250" height="4" rx="2" fill="#1c2030"/>
+      <rect x="20" y="244" width="203" height="4" rx="2" fill="#4ade80"/>
+    </g>
+
+    <line x1="20" y1="276" x2="270" y2="276" stroke="#3a4a78" stroke-width="1"/>
+
+    <!-- 总分大字 -->
+    <text x="20" y="304" font-size="12" fill="#7fa9ff" letter-spacing="2">TOTAL SCORE</text>
+    <text x="20" y="358" font-size="76" font-weight="700" fill="#4ade80">86</text>
+    <text x="170" y="358" font-size="20" fill="#4ade80">A</text>
+  </g>
+
+  <!-- 右段角注 -->
+  <text x="1300" y="555" font-size="12" fill="#7fa9ff" opacity="0.7" letter-spacing="2">SCORE · 评分</text>
+
+</svg>

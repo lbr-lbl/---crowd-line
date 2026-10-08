@@ -1,0 +1,25 @@
+{
+  "id": "chengdu_net",
+  "name": "成都三线（简化）",
+  "city": "成都",
+  "difficulty": 3,
+  "stations": [
+    {"id": 0, "name": "火车北站", "x": 260, "y": 210, "capacity": 160},
+    {"id": 1, "name": "骡马市", "x": 380, "y": 270, "capacity": 150},
+    {"id": 2, "name": "天府广场", "x": 500, "y": 330, "capacity": 180},
+    {"id": 3, "name": "春熙路", "x": 620, "y": 380, "capacity": 160},
+    {"id": 4, "name": "省体育馆", "x": 740, "y": 430, "capacity": 150},
+    {"id": 5, "name": "火车南站", "x": 860, "y": 470, "capacity": 160},
+    {"id": 6, "name": "犀浦", "x": 180, "y": 340, "capacity": 130},
+    {"id": 7, "name": "中医大省医院", "x": 440, "y": 440, "capacity": 140},
+    {"id": 8, "name": "宽窄巷子", "x": 560, "y": 500, "capacity": 150},
+    {"id": 9, "name": "成都东客站", "x": 700, "y": 560, "capacity": 170},
+    {"id": 10, "name": "太平园", "x": 620, "y": 240, "capacity": 150},
+    {"id": 11, "name": "世纪城", "x": 720, "y": 520, "capacity": 140}
+  ],
+  "lines": [
+    {"id": 0, "name": "1号线", "color": "#1e88e5", "headway": 14.0, "speed": 120.0, "station_ids": [0, 1, 2, 3, 4, 5]},
+    {"id": 1, "name": "2号线", "color": "#fb8c00", "headway": 15.0, "speed": 115.0, "station_ids": [6, 2, 7, 8, 9]},
+    {"id": 2, "name": "7号线", "color": "#fdd835", "headway": 16.0, "speed": 115.0, "station_ids": [10, 3, 4, 11, 9]}
+  ]
+}

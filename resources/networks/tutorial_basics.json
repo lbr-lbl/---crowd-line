@@ -1,0 +1,21 @@
+{
+  "id": "tutorial_basics",
+  "name": "教程：涌线演示线",
+  "city": "教程",
+  "difficulty": 0,
+  "tutorial": true,
+  "stations": [
+    {"id": 0, "name": "晨光站", "x": 160, "y": 480, "capacity": 120},
+    {"id": 1, "name": "桥东站", "x": 380, "y": 440, "capacity": 140},
+    {"id": 2, "name": "中心广场", "x": 600, "y": 400, "capacity": 180},
+    {"id": 3, "name": "学院路", "x": 820, "y": 420, "capacity": 140},
+    {"id": 4, "name": "科技园", "x": 1040, "y": 470, "capacity": 140},
+    {"id": 5, "name": "望江湾", "x": 1180, "y": 560, "capacity": 120},
+    {"id": 6, "name": "老城区", "x": 520, "y": 600, "capacity": 130},
+    {"id": 7, "name": "观湖台", "x": 400, "y": 180, "capacity": 120}
+  ],
+  "lines": [
+    {"id": 0, "name": "1号线", "color": "#00b5ff", "headway": 12.0, "speed": 120.0, "station_ids": [0, 1, 2, 3, 4, 5]},
+    {"id": 1, "name": "2号线", "color": "#ff8c00", "headway": 14.0, "speed": 110.0, "station_ids": [7, 2, 6, 5]}
+  ]
+}
