@@ -1,19 +1,32 @@
 class_name Settlement
 extends Control
-## 结算界面：积分明细、评级、历史最佳。
+## 结算界面：积分明细、评级徽章、历史最佳。
+## 界面本体在 scenes/settlement.tscn 里搭好，本脚本只填文本与徽章图。
 
 signal restart_requested
 signal menu_requested
 
+const BADGE_PATH := "res://assets/icons/badge_%s.png"
+
+@onready var reason_label: Label = $Center/Box/ReasonLabel
+@onready var rating_badge: TextureRect = $Center/Box/RatingRow/RatingBadge
+@onready var rating_label: Label = $Center/Box/RatingRow/RatingLabel
+@onready var score_label: Label = $Center/Box/ScoreLabel
+@onready var best_label: Label = $Center/Box/BestLabel
+@onready var detail_label: Label = $Center/Box/DetailLabel
+@onready var restart_button: Button = $Center/Box/Buttons/RestartButton
+@onready var menu_button: Button = $Center/Box/Buttons/MenuButton
+
 var metrics: Dictionary = {}
 var reason: String = ""
 var network_id: String = ""
-
-var rating_label: Label
-var score_label: Label
-var detail_label: Label
-var best_label: Label
 var new_record: bool = false
+
+
+func _ready() -> void:
+	restart_button.pressed.connect(func(): restart_requested.emit())
+	menu_button.pressed.connect(func(): menu_requested.emit())
+	hide()
 
 
 func setup(p_reason: String, p_metrics: Dictionary, p_network_id: String) -> void:
@@ -22,83 +35,27 @@ func setup(p_reason: String, p_metrics: Dictionary, p_network_id: String) -> voi
 	network_id = p_network_id
 	var score: float = p_metrics.get("total_score", 0.0)
 	new_record = AppState.record_result(network_id, score)
-	_build_ui()
+	_refresh()
 
 
-func _build_ui() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.02, 0.05, 0.92)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(dim)
-
-	var cc := CenterContainer.new()
-	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(cc)
-
-	var center := VBoxContainer.new()
-	center.custom_minimum_size = Vector2(460, 0)
-	center.add_theme_constant_override("separation", 10)
-	cc.add_child(center)
-
-	var title := Label.new()
-	title.text = "运营结算"
-	title.add_theme_font_size_override("font_size", 34)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(title)
-
-	var reason_label := Label.new()
+func _refresh() -> void:
+	var rating := str(metrics.get("rating", "D"))
 	reason_label.text = reason
-	reason_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	reason_label.modulate = Color(0.8, 0.85, 1.0)
-	center.add_child(reason_label)
-
-	rating_label = Label.new()
-	rating_label.text = "评级 %s" % metrics.get("rating", "D")
-	rating_label.add_theme_font_size_override("font_size", 60)
-	rating_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(rating_label)
-
-	score_label = Label.new()
+	rating_label.text = "评级 %s" % rating
+	# 评级徽章：assets/icons/badge_S..D.png
+	var path := BADGE_PATH % rating
+	if ResourceLoader.exists(path):
+		rating_badge.texture = load(path)
+		rating_badge.visible = true
+	else:
+		rating_badge.visible = false
 	score_label.text = "总分 %d" % int(metrics.get("total_score", 0))
-	score_label.add_theme_font_size_override("font_size", 26)
-	score_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(score_label)
-
-	best_label = Label.new()
-	best_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	best_label.add_theme_font_size_override("font_size", 15)
 	if new_record:
 		best_label.text = "★ 新纪录！"
-		best_label.modulate = Color(1.0, 0.9, 0.3)
 	else:
 		var best: float = AppState.high_scores.get(network_id, 0)
 		best_label.text = "历史最佳 %d 分" % int(best)
-		best_label.modulate = Color(0.7, 0.8, 1.0)
-	center.add_child(best_label)
-
-	detail_label = Label.new()
-	detail_label.add_theme_font_size_override("font_size", 15)
-	detail_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(detail_label)
 	_detail_text()
-
-	var btns := HBoxContainer.new()
-	btns.alignment = BoxContainer.ALIGNMENT_CENTER
-	btns.add_theme_constant_override("separation", 16)
-	center.add_child(btns)
-
-	var restart := Button.new()
-	restart.text = "再来一局"
-	restart.custom_minimum_size = Vector2(140, 44)
-	restart.pressed.connect(func(): restart_requested.emit())
-	btns.add_child(restart)
-
-	var menu := Button.new()
-	menu.text = "返回菜单"
-	menu.custom_minimum_size = Vector2(140, 44)
-	menu.pressed.connect(func(): menu_requested.emit())
-	btns.add_child(menu)
 
 
 func _detail_text() -> void:
@@ -111,3 +68,10 @@ func _detail_text() -> void:
 		metrics.get("safety", 0.0) * 100,
 		metrics.get("efficiency", 0.0) * 100,
 	]
+	# 无限模式：成绩主要是"撑到第几波、线网长到多大"
+	if bool(metrics.get("infinite", false)):
+		detail_label.text += "\n撑到第 %d 波 · 站点 %d · 线路 %d" % [
+			int(metrics.get("wave", 0)),
+			int(metrics.get("stations", 0)),
+			int(metrics.get("lines", 0)),
+		]

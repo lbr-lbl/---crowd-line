@@ -62,6 +62,9 @@ static func build_lines(network: Dictionary, stations: Array[Station]) -> Array[
         ln.color = Config.hex_to_color(str(l["color"]))
         ln.headway = float(l.get("headway", 12.0))
         ln.base_speed = float(l.get("speed", 120.0))
+        # 车辆段选址（B）：JSON 可选显式声明 depot_station（站点 id）；
+        # 没写就由 Simulation 自动挑一个非换乘站，避免车辆段压在换乘枢纽上。
+        ln.depot_station_override = int(l.get("depot_station", -1))
         var ids: Array[int] = []
         for sid in l["station_ids"]:
             ids.append(int(sid))

@@ -1,117 +1,23 @@
 class_name MainMenu
 extends Control
-## 主菜单：选择"线路池"（→随机抽线网）与难度，开始游戏。
+## 主菜单：选择"线路池"（→随机抽线网），开始游戏。
+## 界面本体在 scenes/main_menu.tscn 里搭好，本脚本只绑定节点与刷新文案。
 
 signal start_requested(network_id: String, mode: String)
 
-var pool_option: OptionButton
-var difficulty_option: OptionButton
-var pool_desc_label: Label
-var highscore_label: Label
+@onready var pool_option: OptionButton = $Center/Box/PoolOption
+@onready var pool_desc_label: Label = $Center/Box/PoolDesc
+@onready var highscore_label: Label = $Center/Box/HighScore
+@onready var start_button: Button = $Center/Box/StartButton
 
 
 func _ready() -> void:
-	_build_ui()
-
-
-func _build_ui() -> void:
-	set_anchors_preset(Control.PRESET_FULL_RECT)
-
-	# 背景
-	var bg := ColorRect.new()
-	bg.color = Color("#0e0e1e")
-	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(bg)
-
-	var cc := CenterContainer.new()
-	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(cc)
-
-	var center := VBoxContainer.new()
-	center.custom_minimum_size = Vector2(460, 0)
-	center.add_theme_constant_override("separation", 12)
-	center.anchor_left = 0.5
-	center.anchor_right = 0.5
-	cc.add_child(center)
-
-	var title := Label.new()
-	title.text = "涌线 -- crowd line"
-	title.add_theme_font_size_override("font_size", 42)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(title)
-
-	var subtitle := Label.new()
-	subtitle.text = "涌现式地铁调度沙盒 · 你只调规则，不控制乘客"
-	subtitle.add_theme_font_size_override("font_size", 14)
-	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	subtitle.modulate = Color(0.7, 0.8, 1.0)
-	center.add_child(subtitle)
-
-	center.add_child(_spacer(6))
-
-	# 线路池选择
-	var nl := Label.new()
-	nl.text = "线路池"
-	nl.add_theme_font_size_override("font_size", 14)
-	nl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(nl)
-	pool_option = OptionButton.new()
-	pool_option.add_theme_font_size_override("font_size", 16)
+	pool_option.clear()
 	for pid in NetworkPool.list_pool_ids():
 		pool_option.add_item(NetworkPool.pool_label(pid))
-	center.add_child(pool_option)
-
-	# 池描述
-	pool_desc_label = Label.new()
-	pool_desc_label.add_theme_font_size_override("font_size", 13)
-	pool_desc_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pool_desc_label.modulate = Color(0.7, 0.8, 1.0)
-	center.add_child(pool_desc_label)
-
-	# 难度选择
-	var dl := Label.new()
-	dl.text = "难度池"
-	dl.add_theme_font_size_override("font_size", 14)
-	dl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	center.add_child(dl)
-	difficulty_option = OptionButton.new()
-	difficulty_option.add_item("入门池 ★（5 分钟）")
-	difficulty_option.add_item("进阶池 ★★（8 分钟）")
-	difficulty_option.add_item("硬核池 ★★★（12 分钟）")
-	difficulty_option.add_theme_font_size_override("font_size", 16)
-	center.add_child(difficulty_option)
-	difficulty_option.visible = false  # 池已决定难度，隐藏手动难度，避免双重选择
-
-	center.add_child(_spacer(4))
-
-	highscore_label = Label.new()
-	highscore_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	highscore_label.add_theme_font_size_override("font_size", 14)
-	highscore_label.modulate = Color(1.0, 0.9, 0.5)
-	center.add_child(highscore_label)
-
-	var start := Button.new()
-	start.text = "开始运营"
-	start.custom_minimum_size = Vector2(0, 48)
-	start.add_theme_font_size_override("font_size", 20)
-	start.pressed.connect(_on_start)
-	center.add_child(start)
-
-	var hint := Label.new()
-	hint.text = "滚轮缩放 · 拖拽平移 · 点击站点/线路选择 · 点空白取消"
-	hint.add_theme_font_size_override("font_size", 12)
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	hint.modulate = Color(0.55, 0.6, 0.7)
-	center.add_child(hint)
-
-	pool_option.item_selected.connect(func(_i): _refresh_pool_info())
-	_refresh_pool_info()
-
-
-func _spacer(h: int) -> Control:
-	var c := Control.new()
-	c.custom_minimum_size = Vector2(0, h)
-	return c
+	pool_option.item_selected.connect(func(_i): refresh_pool_info())
+	start_button.pressed.connect(_on_start)
+	refresh_pool_info()
 
 
 func _current_pool_id() -> String:
@@ -121,7 +27,7 @@ func _current_pool_id() -> String:
 	return pids[pool_option.selected]
 
 
-func _refresh_pool_info() -> void:
+func refresh_pool_info() -> void:
 	var pid := _current_pool_id()
 	pool_desc_label.text = NetworkPool.pool_desc(pid)
 	# 随机抽一条展示这个名字，让玩家知道会进哪条线

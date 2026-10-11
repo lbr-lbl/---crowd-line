@@ -1,0 +1,81 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/pause_overlay.gd" id="1_pause"]
+[ext_resource type="Theme" path="res://resources/theme_light.tres" id="2_theme"]
+
+[node name="PauseOverlay" type="Control"]
+visible = false
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_pause")
+
+[node name="Dim" type="ColorRect" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.05, 0.07, 0.12, 0.45)
+
+[node name="Center" type="CenterContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(440, 0)
+
+[node name="Box" type="VBoxContainer" parent="Center/Card"]
+theme_override_constants/separation = 10
+
+[node name="Title" type="Label" parent="Center/Card/Box"]
+theme_override_colors/font_color = Color(0.09, 0.13, 0.21, 1)
+theme_override_font_sizes/font_size = 24
+text = "暂停 · 运营概览"
+horizontal_alignment = 1
+
+[node name="RatingLabel" type="Label" parent="Center/Card/Box"]
+theme_override_colors/font_color = Color(0.13, 0.24, 0.42, 1)
+theme_override_font_sizes/font_size = 20
+text = "评级 B"
+horizontal_alignment = 1
+
+[node name="ScoreLabel" type="Label" parent="Center/Card/Box"]
+theme_override_font_sizes/font_size = 17
+text = "总分 0"
+horizontal_alignment = 1
+
+[node name="DurationLabel" type="Label" parent="Center/Card/Box"]
+theme_override_font_sizes/font_size = 15
+text = "运营时长"
+horizontal_alignment = 1
+
+[node name="MetricsLabel" type="Label" parent="Center/Card/Box"]
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="ExtraLabel" type="Label" parent="Center/Card/Box"]
+visible = false
+theme_override_colors/font_color = Color(0.55, 0.35, 0.04, 1)
+theme_override_font_sizes/font_size = 14
+horizontal_alignment = 1
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Card/Box"]
+alignment = 1
+theme_override_constants/separation = 12
+
+[node name="ResumeButton" type="Button" parent="Center/Card/Box/Buttons"]
+custom_minimum_size = Vector2(150, 44)
+theme_override_font_sizes/font_size = 16
+text = "继续运营"
+
+[node name="QuitButton" type="Button" parent="Center/Card/Box/Buttons"]
+custom_minimum_size = Vector2(150, 44)
+theme_override_font_sizes/font_size = 16
+text = "退出到主菜单"

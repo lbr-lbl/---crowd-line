@@ -1,0 +1,78 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="Script" path="res://scripts/game.gd" id="1_game"]
+[ext_resource type="Script" path="res://scripts/simulation/simulation.gd" id="2_sim"]
+[ext_resource type="Script" path="res://scripts/rendering/game_view.gd" id="3_view"]
+[ext_resource type="Script" path="res://scripts/rendering/passenger_layer.gd" id="4_pass"]
+[ext_resource type="Script" path="res://scripts/rendering/train_layer.gd" id="5_train"]
+[ext_resource type="Script" path="res://scripts/rendering/background_layer.gd" id="6_bg"]
+[ext_resource type="Shader" path="res://shaders/bg_paper.gdshader" id="7_bgsh"]
+[ext_resource type="Script" path="res://scripts/rendering/weather_particles.gd" id="8_weather"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="9_hud"]
+[ext_resource type="Script" path="res://scripts/ui/upgrade_ui.gd" id="10_upgrade"]
+[ext_resource type="Script" path="res://scripts/ui/tutorial_overlay.gd" id="11_tut"]
+[ext_resource type="Script" path="res://scripts/rendering/camera_controller.gd" id="12_cam"]
+[ext_resource type="PackedScene" path="res://scenes/pause_overlay.tscn" id="13_pause"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_paper"]
+shader = ExtResource("7_bgsh")
+
+[node name="Game" type="Node2D"]
+script = ExtResource("1_game")
+
+[node name="Simulation" type="Node" parent="."]
+script = ExtResource("2_sim")
+
+[node name="BackgroundLayer" type="CanvasLayer" parent="."]
+layer = -1
+
+[node name="Paper" type="ColorRect" parent="BackgroundLayer"]
+material = SubResource("ShaderMaterial_paper")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("6_bg")
+
+[node name="World" type="Node2D" parent="."]
+
+[node name="Camera2D" type="Camera2D" parent="World"]
+
+[node name="GameView" type="Node2D" parent="World"]
+script = ExtResource("3_view")
+paint_background = false
+
+[node name="PassengerLayer" type="Node2D" parent="World"]
+script = ExtResource("4_pass")
+
+[node name="TrainLayer" type="Node2D" parent="World"]
+script = ExtResource("5_train")
+
+[node name="WeatherLayer" type="CanvasLayer" parent="."]
+layer = 5
+
+[node name="WeatherParticles" type="Node2D" parent="WeatherLayer"]
+script = ExtResource("8_weather")
+
+[node name="HUD" parent="." instance=ExtResource("9_hud")]
+
+[node name="OverlayLayer" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="UpgradeUI" type="Control" parent="OverlayLayer"]
+visible = false
+script = ExtResource("10_upgrade")
+
+[node name="PauseOverlay" parent="OverlayLayer" instance=ExtResource("13_pause")]
+
+[node name="TutorialLayer" type="CanvasLayer" parent="."]
+layer = 30
+
+[node name="TutorialOverlay" type="Control" parent="TutorialLayer"]
+visible = false
+script = ExtResource("11_tut")
+
+[node name="CameraController" type="Node" parent="."]
+script = ExtResource("12_cam")

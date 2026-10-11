@@ -1,6 +1,20 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=4 format=3]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/main_menu.tscn" id="2_menu"]
+[ext_resource type="PackedScene" path="res://scenes/settlement.tscn" id="3_settle"]
 
 [node name="Main" type="Node"]
-script = ExtResource("1")
+script = ExtResource("1_main")
+
+[node name="MenuLayer" type="CanvasLayer" parent="."]
+layer = 10
+
+[node name="MainMenu" parent="MenuLayer" instance=ExtResource("2_menu")]
+
+[node name="GameHost" type="Node" parent="."]
+
+[node name="SettlementLayer" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="Settlement" parent="SettlementLayer" instance=ExtResource("3_settle")]

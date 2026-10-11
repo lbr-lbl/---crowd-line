@@ -1,5 +1,18 @@
 # 《涌线--crowd line》线路池设计
 
+> **⚠ 本文档性质：早期设计提案（未完全按此实现）**
+>
+> 本文写于线网实现之前，为四个池各推荐了 4 条线路网。**实际落地情况与本文不同**，以代码为准：
+>
+> - 实际是 **5 个池**（多了教程池 `tutorial`），池的定义在 `scripts/autoload/network_pool.gd`。
+> - 实际共 **7 张线网**，在 `resources/networks/` 下：`tutorial_basics`、`wenzhou_s1`、`lisbon_blue`、
+>   `hongkong_tw_kt`、`taipei_cross`、`chongqing_net`、`chengdu_net`。
+> - 实际 JSON schema 与本文示例**不同**：以 `stations: [{id, name, x, y, capacity}]` + `lines: [{id, name, color, headway, speed, station_ids}]`
+>   为准（见 `项目规范.md` §4.1），本文用的是「lines[].stations 用站名字符串数组 + transfers 显式声明」的旧写法。
+> - **铁律**：`station.id` 必须等于它在 `stations` 数组中的下标且从 0 连续，否则 `stations[sid]` 越界崩溃。
+>
+> 本文仍有价值的部分是**各城市线网的真实站点名称与换乘关系素材**，可作为后续扩充线网的数据源。
+
 根据策划案v0.2的难度分级，为四个池各推荐4条线路网，并附JSON数据文件。JSON格式遵循策划案第14节的简化原则：只保留线路拓扑、换乘关系、站点名称和特色标签。
 
 ## 基础池（★）：1—2条线，5—8个站

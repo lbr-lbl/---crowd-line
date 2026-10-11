@@ -31,8 +31,8 @@ const POOLS: Dictionary = {
 	},
 	"infinite": {
 		"label": "无限模式 ∞",
-		"mode": "hardcore",
-		"desc": "随机组合· 每局不同 · 肉鸽升级",
+		"mode": "infinite",
+		"desc": "不限时 · 每波扩张线网 · 看你能撑到第几波",
 		"members": [],
 	},
 }

@@ -16,14 +16,21 @@ func _build() -> void:
 	for c in get_children():
 		c.queue_free()
 
-	set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 亮色主题：面板本体也跟着走，否则道具卡还是 Godot 默认的深色
+	theme = load("res://resources/theme_light.tres")
+
+	# ⚠ 必须用 `set_anchors_and_offsets_preset`。
+	# `set_anchors_preset` **只改锚点、会保留当前矩形**（它的 keep_offsets 默认就是这样），
+	# 所以之前这里写了等于没铺满 —— 面板缩在左上角、遮罩也只盖住一小块。
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var dim := ColorRect.new()
-	dim.color = Color(0.02, 0.02, 0.05, 0.8)
-	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	# 亮色主题下用"磨砂白"遮罩，比压黑更贴合纸面
+	dim.color = Color(0.96, 0.97, 1.0, 0.86)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(dim)
 
 	var cc := CenterContainer.new()
-	cc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(cc)
 
 	var outer := VBoxContainer.new()
@@ -49,7 +56,7 @@ func _build() -> void:
 		row.add_child(b)
 
 		var v := VBoxContainer.new()
-		v.set_anchors_preset(Control.PRESET_FULL_RECT)
+		v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 		v.alignment = BoxContainer.ALIGNMENT_CENTER
 		v.add_theme_constant_override("separation", 12)
 		b.add_child(v)
@@ -73,7 +80,8 @@ func _build() -> void:
 		desc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		desc.custom_minimum_size = Vector2(240, 60)
-		desc.modulate = Color(0.75, 0.8, 0.9)
+		# 原来是给深色底调的浅蓝，亮色主题下会看不清 -> 改成次要墨色
+		desc.add_theme_color_override("font_color", Color(0.35, 0.40, 0.50))
 		v.add_child(desc)
 
 

@@ -1,0 +1,103 @@
+{
+  "_doc": [
+    "现实依据集中表：改这里就能改全游戏，不必动每张地图的 JSON。",
+    "· weather：每种天气需要哪些气候带、出现权重。climates 里的 '*' 表示任何线网都可以。",
+    "· networks：每张线网的气候带、禁用天气、以及**真实场馆**（事件只在这些站发生）。",
+    "· event_kinds：事件种类 -> 需要的场馆类型、展示名、瞬时客流规模。",
+    "原则：不加现实中不可能出现的天气（例如香港/台北/温州/重庆不可能下雪，就全部禁用）。"
+  ],
+
+  "weather": {
+    "clear":        {"climates": ["*"], "weight": 30, "opening": true},
+    "overcast":     {"climates": ["*"], "weight": 22, "opening": true},
+    "light_rain":   {"climates": ["rainy", "typhoon", "humid"], "weight": 18},
+    "heavy_rain":   {"climates": ["rainy", "typhoon", "humid"], "weight": 9},
+    "thunderstorm": {"climates": ["rainy", "typhoon", "humid", "hot"], "weight": 6},
+    "typhoon":      {"climates": ["typhoon"], "weight": 3},
+    "heatwave":     {"climates": ["hot", "humid"], "weight": 7},
+    "fog":          {"climates": ["foggy", "humid"], "weight": 9},
+    "snow":         {"climates": ["snowy"], "weight": 4}
+  },
+
+  "networks": {
+    "wenzhou_s1": {
+      "city": "温州",
+      "climates": ["rainy", "typhoon", "humid"],
+      "forbidden_weather": ["snow"],
+      "venues": [
+        {"name": "温州奥体中心", "station": "奥体中心", "kinds": ["concert", "sports"], "capacity": 50000},
+        {"name": "三垟湿地", "station": "三垟湿地", "kinds": ["tourism"], "capacity": 30000},
+        {"name": "温州南站", "station": "动车南", "kinds": ["rail_hub"], "capacity": 60000}
+      ]
+    },
+    "lisbon_blue": {
+      "city": "里斯本",
+      "climates": ["clear", "hot", "rainy"],
+      "forbidden_weather": ["snow", "typhoon"],
+      "venues": [
+        {"name": "里斯本动物园", "station": "Jardim Zoológico", "kinds": ["tourism"], "capacity": 20000}
+      ]
+    },
+    "taipei_cross": {
+      "city": "台北",
+      "climates": ["rainy", "typhoon", "humid", "hot"],
+      "forbidden_weather": ["snow"],
+      "venues": [
+        {"name": "台北 101 / 世贸", "station": "台北101/世贸", "kinds": ["exhibition", "countdown"], "capacity": 40000},
+        {"name": "南港展览馆", "station": "南港展览馆", "kinds": ["exhibition"], "capacity": 30000},
+        {"name": "龙山寺", "station": "龙山寺", "kinds": ["temple_fair"], "capacity": 20000},
+        {"name": "士林夜市", "station": "士林", "kinds": ["night_market"], "capacity": 25000}
+      ]
+    },
+    "hongkong_tw_kt": {
+      "city": "香港",
+      "climates": ["rainy", "typhoon", "humid", "hot"],
+      "forbidden_weather": ["snow"],
+      "venues": [
+        {"name": "红磡香港体育馆", "station": "黄埔", "kinds": ["concert"], "capacity": 12500},
+        {"name": "旺角女人街", "station": "旺角", "kinds": ["night_market"], "capacity": 30000},
+        {"name": "尖沙咀海滨", "station": "尖沙咀", "kinds": ["tourism", "countdown"], "capacity": 40000},
+        {"name": "中环 IFC", "station": "中环", "kinds": ["night_market"], "capacity": 25000}
+      ]
+    },
+    "chongqing_net": {
+      "city": "重庆",
+      "climates": ["foggy", "humid", "hot", "rainy"],
+      "forbidden_weather": ["snow", "typhoon"],
+      "venues": [
+        {"name": "磁器口古镇", "station": "磁器口", "kinds": ["tourism"], "capacity": 30000},
+        {"name": "观音桥商圈", "station": "观音桥", "kinds": ["night_market"], "capacity": 40000},
+        {"name": "重庆奥体中心", "station": "谢家湾", "kinds": ["sports", "concert"], "capacity": 58000},
+        {"name": "重庆北站", "station": "沙坪坝", "kinds": ["rail_hub"], "capacity": 50000}
+      ]
+    },
+    "chengdu_net": {
+      "city": "成都",
+      "climates": ["foggy", "humid", "rainy"],
+      "forbidden_weather": ["snow", "typhoon", "heatwave"],
+      "venues": [
+        {"name": "春熙路 / 太古里", "station": "春熙路", "kinds": ["night_market"], "capacity": 40000},
+        {"name": "宽窄巷子", "station": "宽窄巷子", "kinds": ["tourism"], "capacity": 30000},
+        {"name": "世纪城新会展", "station": "世纪城", "kinds": ["exhibition"], "capacity": 35000},
+        {"name": "四川省体育馆", "station": "省体育馆", "kinds": ["concert", "sports"], "capacity": 9000}
+      ]
+    },
+    "tutorial_basics": {
+      "city": "示例",
+      "climates": ["*"],
+      "forbidden_weather": [],
+      "venues": []
+    }
+  },
+
+  "event_kinds": {
+    "concert":      {"venue_kind": "concert",      "label": "演唱会散场", "burst": 18},
+    "sports":       {"venue_kind": "sports",       "label": "球赛散场",   "burst": 16},
+    "exhibition":   {"venue_kind": "exhibition",   "label": "展会散场",   "burst": 14},
+    "temple_fair":  {"venue_kind": "temple_fair",  "label": "庙会散场",   "burst": 12},
+    "night_market": {"venue_kind": "night_market", "label": "夜市收摊",   "burst": 10},
+    "tourism":      {"venue_kind": "tourism",      "label": "景区返程",   "burst": 12},
+    "countdown":    {"venue_kind": "countdown",    "label": "跨年散场",   "burst": 22},
+    "rail_hub":     {"venue_kind": "rail_hub",     "label": "铁路到站潮", "burst": 20}
+  }
+}
