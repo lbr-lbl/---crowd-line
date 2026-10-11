@@ -1,0 +1,119 @@
+[gd_resource type="Theme" load_steps=7 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/icons/icon_chevron_down.png" id="1_arrow"]
+
+[sub_resource type="StyleBoxFlat" id="Panel"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 12.0
+content_margin_bottom = 9.0
+bg_color = Color(1, 1, 1, 0.93)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.28, 0.4, 0.22)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0.1, 0.15, 0.25, 0.18)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="BtnNormal"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(1, 1, 1, 0.94)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.28, 0.4, 0.32)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="BtnHover"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.93, 0.97, 1, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14, 0.38, 0.66, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="BtnPressed"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.82, 0.9, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.14, 0.42, 0.78, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="BtnDisabled"]
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+bg_color = Color(0.85, 0.87, 0.91, 0.4)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.55, 0.62, 0.18)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[resource]
+Button/colors/font_color = Color(0.105, 0.141, 0.212, 1)
+Button/colors/font_disabled_color = Color(0.42, 0.47, 0.55, 0.55)
+Button/colors/font_focus_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/font_hover_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/font_pressed_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/icon_disabled_color = Color(0.42, 0.47, 0.55, 0.45)
+Button/colors/icon_hover_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/icon_normal_color = Color(0.105, 0.141, 0.212, 1)
+Button/colors/icon_pressed_color = Color(0.14, 0.42, 0.78, 1)
+Button/font_sizes/font_size = 14
+Button/styles/disabled = SubResource("BtnDisabled")
+Button/styles/hover = SubResource("BtnHover")
+Button/styles/normal = SubResource("BtnNormal")
+Button/styles/pressed = SubResource("BtnPressed")
+Label/colors/font_color = Color(0.105, 0.141, 0.212, 1)
+Label/font_sizes/font_size = 14
+OptionButton/colors/font_color = Color(0.105, 0.141, 0.212, 1)
+OptionButton/colors/font_disabled_color = Color(0.42, 0.47, 0.55, 0.55)
+OptionButton/colors/font_focus_color = Color(0.06, 0.09, 0.16, 1)
+OptionButton/colors/font_hover_color = Color(0.06, 0.09, 0.16, 1)
+OptionButton/colors/font_pressed_color = Color(0.06, 0.09, 0.16, 1)
+OptionButton/font_sizes/font_size = 14
+OptionButton/icons/arrow = ExtResource("1_arrow")
+OptionButton/styles/disabled = SubResource("BtnDisabled")
+OptionButton/styles/focus = SubResource("BtnPressed")
+OptionButton/styles/hover = SubResource("BtnHover")
+OptionButton/styles/normal = SubResource("BtnNormal")
+OptionButton/styles/pressed = SubResource("BtnPressed")
+PanelContainer/styles/panel = SubResource("Panel")
+RichTextLabel/colors/default_color = Color(0.105, 0.141, 0.212, 1)
+RichTextLabel/font_sizes/normal_font_size = 13

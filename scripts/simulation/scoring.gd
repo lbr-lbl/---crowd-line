@@ -29,6 +29,11 @@ func reset(p_target: float) -> void:
 	safety = 1.0
 
 
+## 无限模式用：只抬高吞吐目标，不清空已有统计（否则每波都把成绩抹掉）。
+func set_target(p_target: float) -> void:
+	target_served = maxf(1.0, p_target)
+
+
 func record_arrival(on_time: bool) -> void:
 	arrivals_total += 1
 	if on_time:

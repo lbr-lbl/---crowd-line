@@ -1,0 +1,418 @@
+[gd_scene load_steps=21 format=3]
+
+[ext_resource type="Script" path="res://scripts/ui/hud.gd" id="1_hud"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_limit.png" id="2_limit"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_add_train.png" id="3_addtrain"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_close.png" id="4_close"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_skip.png" id="5_skip"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_broadcast.png" id="6_broadcast"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_pause.png" id="7_pause"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_play.png" id="8_play"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_fast.png" id="9_fast"]
+[ext_resource type="Texture2D" path="res://assets/icons/badge_B.png" id="10_badge"]
+[ext_resource type="Texture2D" path="res://assets/icons/icon_log.png" id="11_log"]
+[ext_resource type="Script" path="res://scripts/ui/view_slider.gd" id="12_slider"]
+[ext_resource type="Script" path="res://scripts/ui/time_axis.gd" id="13_timeaxis"]
+
+[sub_resource type="StyleBoxFlat" id="StylePanel"]
+content_margin_left = 12.0
+content_margin_top = 9.0
+content_margin_right = 12.0
+content_margin_bottom = 9.0
+bg_color = Color(1, 1, 1, 0.93)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.28, 0.4, 0.22)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+shadow_color = Color(0.1, 0.15, 0.25, 0.18)
+shadow_size = 6
+shadow_offset = Vector2(0, 2)
+
+[sub_resource type="StyleBoxFlat" id="StyleBtnNormal"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(1, 1, 1, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.22, 0.28, 0.4, 0.3)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBtnHover"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.93, 0.97, 1, 0.98)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.14, 0.38, 0.66, 0.6)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBtnPressed"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.82, 0.9, 1, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.14, 0.42, 0.78, 0.85)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBtnDisabled"]
+content_margin_left = 10.0
+content_margin_top = 6.0
+content_margin_right = 10.0
+content_margin_bottom = 6.0
+bg_color = Color(0.85, 0.87, 0.91, 0.4)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.55, 0.62, 0.18)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBarBg"]
+bg_color = Color(0.22, 0.28, 0.4, 0.16)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBarFill"]
+bg_color = Color(0.15, 0.45, 0.85, 0.85)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="Theme" id="Theme_hud"]
+Button/colors/font_color = Color(0.105, 0.141, 0.212, 1)
+Button/colors/font_disabled_color = Color(0.42, 0.47, 0.55, 0.55)
+Button/colors/font_hover_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/font_pressed_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/icon_normal_color = Color(0.105, 0.141, 0.212, 1)
+Button/colors/icon_hover_color = Color(0.06, 0.09, 0.16, 1)
+Button/colors/icon_pressed_color = Color(0.14, 0.42, 0.78, 1)
+Button/colors/icon_disabled_color = Color(0.42, 0.47, 0.55, 0.45)
+Button/font_sizes/font_size = 13
+Button/styles/disabled = SubResource("StyleBtnDisabled")
+Button/styles/hover = SubResource("StyleBtnHover")
+Button/styles/normal = SubResource("StyleBtnNormal")
+Button/styles/pressed = SubResource("StyleBtnPressed")
+Label/colors/font_color = Color(0.105, 0.141, 0.212, 1)
+Label/font_sizes/font_size = 14
+PanelContainer/styles/panel = SubResource("StylePanel")
+RichTextLabel/colors/default_color = Color(0.105, 0.141, 0.212, 1)
+RichTextLabel/font_sizes/normal_font_size = 13
+
+[node name="HUD" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="TimeAxis" type="Control" parent="."]
+anchors_preset = 9
+anchor_bottom = 1.0
+offset_left = 14.0
+offset_top = 12.0
+offset_right = 52.0
+offset_bottom = -12.0
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("13_timeaxis")
+
+[node name="RatingPanel" type="PanelContainer" parent="."]
+offset_left = 88.0
+offset_top = 12.0
+offset_right = 214.0
+offset_bottom = 96.0
+theme = SubResource("Theme_hud")
+
+[node name="RatingRow" type="HBoxContainer" parent="RatingPanel"]
+theme_override_constants/separation = 8
+
+[node name="RatingBadge" type="TextureRect" parent="RatingPanel/RatingRow"]
+custom_minimum_size = Vector2(46, 46)
+texture = ExtResource("10_badge")
+expand_mode = 1
+stretch_mode = 5
+
+[node name="RatingBox" type="VBoxContainer" parent="RatingPanel/RatingRow"]
+theme_override_constants/separation = 0
+visible = false
+
+[node name="MetricsPanel" type="PanelContainer" parent="."]
+visible = false
+offset_left = 88.0
+offset_top = 108.0
+offset_right = 312.0
+offset_bottom = 386.0
+theme = SubResource("Theme_hud")
+
+[node name="MetricsBox" type="VBoxContainer" parent="MetricsPanel"]
+theme_override_constants/separation = 1
+
+[node name="ResourceLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_colors/font_color = Color(0.62, 0.34, 0.03, 1)
+theme_override_font_sizes/font_size = 17
+text = "资源 100"
+
+[node name="MetricsTitle" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_colors/font_color = Color(0.13, 0.24, 0.42, 1)
+theme_override_font_sizes/font_size = 14
+text = "运营指标"
+
+[node name="PeriodLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_colors/font_color = Color(0.29, 0.35, 0.47, 1)
+theme_override_font_sizes/font_size = 13
+text = "清晨"
+
+[node name="WeatherLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_colors/font_color = Color(0.27, 0.36, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "天气：晴"
+
+[node name="PunctualityLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_font_sizes/font_size = 13
+text = "准点率 100%"
+
+[node name="SatisfactionLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_font_sizes/font_size = 13
+text = "满意度 100%"
+
+[node name="ThroughputLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_font_sizes/font_size = 13
+text = "吞吐量 0/0"
+
+[node name="SafetyLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_font_sizes/font_size = 13
+text = "安全分 100%"
+
+[node name="EfficiencyLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+theme_override_font_sizes/font_size = 13
+text = "效率分 100%"
+
+[node name="WaveLabel" type="Label" parent="MetricsPanel/MetricsBox"]
+visible = false
+theme_override_colors/font_color = Color(0.72, 0.4, 0.02, 1)
+theme_override_font_sizes/font_size = 13
+text = "第 1 波"
+
+[node name="BandLabel" type="Label" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -150.0
+offset_top = 492.0
+offset_right = -12.0
+offset_bottom = 524.0
+grow_horizontal = 0
+theme_override_colors/font_color = Color(0.16, 0.31, 0.52, 0.95)
+theme_override_font_sizes/font_size = 13
+text = "视野 H · 全貌"
+horizontal_alignment = 2
+
+[node name="TimePanel" type="PanelContainer" parent="."]
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -140.0
+offset_top = 12.0
+offset_right = 140.0
+offset_bottom = 62.0
+grow_horizontal = 2
+theme = SubResource("Theme_hud")
+
+[node name="TimeRow" type="HBoxContainer" parent="TimePanel"]
+alignment = 1
+theme_override_constants/separation = 10
+
+[node name="PauseButton" type="Button" parent="TimePanel/TimeRow"]
+custom_minimum_size = Vector2(46, 32)
+tooltip_text = "暂停并查看概览"
+icon = ExtResource("7_pause")
+expand_icon = true
+
+[node name="ClockLabel" type="Label" parent="TimePanel/TimeRow"]
+custom_minimum_size = Vector2(96, 0)
+theme_override_colors/font_color = Color(0.075, 0.11, 0.19, 1)
+theme_override_font_sizes/font_size = 30
+text = "06:00"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SpeedButton" type="Button" parent="TimePanel/TimeRow"]
+custom_minimum_size = Vector2(46, 32)
+tooltip_text = "加速 2×（再按一次回原速）"
+icon = ExtResource("9_fast")
+expand_icon = true
+toggle_mode = true
+
+[node name="LogButton" type="Button" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -62.0
+offset_top = 108.0
+offset_right = -12.0
+offset_bottom = 156.0
+grow_horizontal = 0
+theme = SubResource("Theme_hud")
+tooltip_text = "运营日志：特殊事件 / 特殊天气 / 玩家操作（带起止时间）"
+icon = ExtResource("11_log")
+expand_icon = true
+
+[node name="LogPanel" type="PanelContainer" parent="."]
+visible = false
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -432.0
+offset_top = 164.0
+offset_right = -72.0
+offset_bottom = 700.0
+grow_horizontal = 0
+theme = SubResource("Theme_hud")
+
+[node name="LogBox" type="VBoxContainer" parent="LogPanel"]
+theme_override_constants/separation = 6
+
+[node name="LogTitle" type="Label" parent="LogPanel/LogBox"]
+theme_override_colors/font_color = Color(0.13, 0.24, 0.42, 1)
+theme_override_font_sizes/font_size = 15
+text = "运营日志"
+
+[node name="LogHint" type="Label" parent="LogPanel/LogBox"]
+theme_override_colors/font_color = Color(0.42, 0.48, 0.58, 1)
+theme_override_font_sizes/font_size = 11
+text = "事件 · 天气 · 操作（起 → 止）· 点条目跳到现场"
+
+[node name="LogText" type="RichTextLabel" parent="LogPanel/LogBox"]
+custom_minimum_size = Vector2(0, 470)
+bbcode_enabled = true
+scroll_active = true
+theme_override_font_sizes/normal_font_size = 12
+
+[node name="ViewSlider" type="Control" parent="."]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -60.0
+offset_top = 168.0
+offset_right = -12.0
+offset_bottom = 488.0
+grow_horizontal = 0
+script = ExtResource("12_slider")
+
+[node name="FloatLayer" type="Control" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ToastLabel" type="Label" parent="."]
+modulate = Color(1, 1, 1, 0)
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -300.0
+offset_top = 104.0
+offset_right = 300.0
+offset_bottom = 148.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(0.6, 0.15, 0.08, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+horizontal_alignment = 1
+
+[node name="OpPanel" type="PanelContainer" parent="."]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_top = -90.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+theme = SubResource("Theme_hud")
+
+[node name="OpBox" type="VBoxContainer" parent="OpPanel"]
+theme_override_constants/separation = 4
+
+[node name="SelLabel" type="Label" parent="OpPanel/OpBox"]
+theme_override_colors/font_color = Color(0.23, 0.31, 0.45, 1)
+theme_override_font_sizes/font_size = 14
+text = "未选择（点击站点或线路）"
+horizontal_alignment = 1
+
+[node name="OpRow" type="HBoxContainer" parent="OpPanel/OpBox"]
+alignment = 1
+theme_override_constants/separation = 8
+
+[node name="LimitButton" type="Button" parent="OpPanel/OpBox/OpRow"]
+custom_minimum_size = Vector2(126, 42)
+tooltip_text = "限流"
+icon = ExtResource("2_limit")
+expand_icon = true
+disabled = true
+text = "限流"
+
+[node name="UpgradeButton" type="Button" parent="OpPanel/OpBox/OpRow"]
+custom_minimum_size = Vector2(126, 42)
+tooltip_text = "升级车辆"
+icon = ExtResource("3_addtrain")
+expand_icon = true
+disabled = true
+text = "升级车辆"
+
+[node name="CloseButton" type="Button" parent="OpPanel/OpBox/OpRow"]
+custom_minimum_size = Vector2(126, 42)
+tooltip_text = "封站"
+icon = ExtResource("4_close")
+expand_icon = true
+disabled = true
+text = "封站"
+
+[node name="SkipButton" type="Button" parent="OpPanel/OpBox/OpRow"]
+custom_minimum_size = Vector2(126, 42)
+tooltip_text = "跳站"
+icon = ExtResource("5_skip")
+expand_icon = true
+disabled = true
+text = "跳站"
+
+[node name="BroadcastButton" type="Button" parent="OpPanel/OpBox/OpRow"]
+custom_minimum_size = Vector2(126, 42)
+tooltip_text = "广播"
+icon = ExtResource("6_broadcast")
+expand_icon = true
+disabled = true
+text = "广播"

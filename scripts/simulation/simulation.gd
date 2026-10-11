@@ -29,11 +29,22 @@ var weather: WeatherSystem
 var score: ScoreSystem
 var events: EventSystem
 
+## 当前线网 id 与它的现实依据（场馆 / 气候 / 禁用天气）都从这里查：
+## `resources/real_world.json`，代码里不出现任何城市名。
+var network_id: String = ""
+## 运营日志：特殊事件 / 特殊天气 / 玩家操作，各带开始与结束时间
+var ops_log: OpsLog = null
+
 var running: bool = false
 var elapsed: float = 0.0
 var duration: float = 300.0
 var mode: String = "entry"
 var tutorial_mode: bool = false
+
+# --- 无限模式 ---
+var infinite_mode: bool = false
+var director: InfiniteDirector = null   # 无限模式导演；其他模式为 null
+var _map_rect: Rect2 = Rect2()          # 初始站点外接矩形：新站一律造在这里面
 
 # --- 需求 ---
 var base_spawn_rate: float = 3.0
@@ -54,7 +65,8 @@ var close_penalty_mult: float = 1.0
 
 # --- 肉鸽升级修饰符 ---
 var entry_multiplier: float = 1.0
-var add_train_cost: float = 30.0
+var depot_cost_scale: float = 1.0      # 建段/加挂费用倍率（升级可降）
+var depot_duration_scale: float = 1.0  # 加挂占站台时长倍率（升级可降）
 var broadcast_power: float = 1.0
 var satisfaction_bias: float = 0.0
 
@@ -86,10 +98,15 @@ var concert_emitter: bool = false
 
 
 func setup(network_id: String, p_mode: String) -> void:
+    # 注意：参数名与成员同名，必须用 self. 才能写到成员上
+    self.network_id = network_id
     mode = p_mode
     tutorial_mode = (p_mode == "tutorial")
+    infinite_mode = (p_mode == "infinite")
     var diff: Dictionary = Config.DIFFICULTY.get(p_mode, Config.DIFFICULTY["entry"])
     duration = diff["duration"]
+
+    ops_log = OpsLog.new()
 
     time = TimeSystem.new()
     time.name = "TimeSystem"
@@ -100,6 +117,7 @@ func setup(network_id: String, p_mode: String) -> void:
     weather = WeatherSystem.new()
     weather.name = "WeatherSystem"
     add_child(weather)
+    weather.sim = self
 
     score = ScoreSystem.new()
     score.reset(diff["target_served"])
@@ -116,18 +134,29 @@ func setup(network_id: String, p_mode: String) -> void:
 
     events = EventSystem.new(self)
 
-    # 根据线路规模调整基准客流
-    base_spawn_rate = clampf(stations.size() * 0.5, 2.0, 12.0) * (1.0 if p_mode != "hardcore" else 1.6)
+    # 无限模式：加装导演，之后每过一波就往线网里塞新站新线
+    _map_rect = _compute_map_rect()
+    if infinite_mode:
+        director = InfiniteDirector.new(self)
+
+    # 根据线路规模调整基准客流（硬核池的倍率与绝对下限都在 Config 里）
+    base_spawn_rate = clampf(stations.size() * 0.5, 2.0, 12.0) \
+        * (Config.HARDCORE_SPAWN_MULT if p_mode == "hardcore" else 1.0)
+    if p_mode == "hardcore":
+        # 小地图的绝对客流太低，硬核会"放着不动也通关"；抬到统一下限
+        base_spawn_rate = maxf(base_spawn_rate, Config.HARDCORE_MIN_SPAWN)
     if tutorial_mode:
         # 教程局：客流温和，便于观察与学习
         base_spawn_rate = clampf(base_spawn_rate * 0.7, 1.5, 4.0)
-        # 教程开局多给一些资源，方便体验"加车"
+        # 教程开局多给一些资源，方便体验操作与车辆段编组
         resources = 150.0
 
     elapsed = 0.0
     if not tutorial_mode:
         resources = 100.0
     running = true
+    # 天气轮替放在最后：此时 network_id / time / ops_log 都已就绪
+    weather.setup_cycle()
 
 
 func _precompute_weights() -> void:
@@ -177,25 +206,63 @@ func _line_round_trip_time(ln: Line) -> float:
 
 func _spawn_initial_trains() -> void:
     for ln in lines:
-        var k := ln.station_ids.size()
-        if k < 2:
+        _spawn_trains_for_line(ln)
+
+
+## 给一条线配车 + 选址车辆段。新加的线（无限模式）也复用这里，
+## 否则新线会是"有轨道没车"的空线。
+func _spawn_trains_for_line(ln: Line) -> void:
+    var k := ln.station_ids.size()
+    # 车辆段选址（B）：JSON 的 depot_station 优先，否则挑非换乘站里离线路中段最近的
+    ln.depot_station_idx = _choose_depot_station_idx(ln, k)
+    if k < 2:
+        return
+    # 车队规模 = 往返时间 / (班次间隔 × 系数) —— 让 headway 真正决定发车密度，
+    # 这样终点站的时刻表只需要"拉开扎堆"，不会白白压低运力。
+    var hw := maxf(ln.effective_headway() * FLEET_HEADWAY_MULT, 0.5)
+    var n := clampi(int(round(_line_round_trip_time(ln) / hw)), 2, 8)
+    var cycle := (k - 1) * 2   # 往返一趟的段数（去程 + 回程）
+    for i in range(n):
+        var t := Train.new()
+        t.id = next_train_id
+        next_train_id += 1
+        t.line_id = ln.id
+        t.cars = int(Config.DEPOT["min_cars"])
+        t.refresh_capacity()
+        t.speed = ln.base_speed
+        # 均匀铺满整趟往返（含回程反向），而不是全堆在起点单向排队
+        _place_train_at_phase(t, ln, k, float(i) * float(cycle) / float(n))
+        ln.trains.append(t)
+        trains.append(t)
+
+
+## 车辆段选址（B）：线网 JSON 的 depot_station 优先；否则挑非换乘站里离线路中段最近的。
+## 原来固定取 int(k/2)：台北淡水信义线（6 站）与板南线（7 站）都落在下标 3 —— 也就是
+## 同一个换乘枢纽「台北车站」，而它本来就是全网最堵的站（容量 190，实测该站队列峰值
+## 112 人 = 密度 0.589，正好是建段局的全局峰值密度）。车辆段不该给自己造堵点。
+func _choose_depot_station_idx(ln: Line, k: int) -> int:
+    if k <= 0:
+        return 0
+    if ln.depot_station_override >= 0:
+        var oi := ln.index_of_station(ln.depot_station_override)
+        if oi >= 0:
+            return oi
+    var mid := float(k - 1) * 0.5
+    var best := -1
+    var best_score := INF
+    for i in range(k):
+        var sid: int = ln.station_ids[i]
+        if sid < 0 or sid >= stations.size():
             continue
-        # 车队规模 = 往返时间 / (班次间隔 × 系数) —— 让 headway 真正决定发车密度，
-        # 这样终点站的时刻表只需要"拉开扎堆"，不会白白压低运力。
-        var hw := maxf(ln.effective_headway() * FLEET_HEADWAY_MULT, 0.5)
-        var n := clampi(int(round(_line_round_trip_time(ln) / hw)), 2, 8)
-        var cycle := (k - 1) * 2   # 往返一趟的段数（去程 + 回程）
-        for i in range(n):
-            var t := Train.new()
-            t.id = next_train_id
-            next_train_id += 1
-            t.line_id = ln.id
-            t.capacity = 80
-            t.speed = ln.base_speed
-            # 均匀铺满整趟往返（含回程反向），而不是全堆在起点单向排队
-            _place_train_at_phase(t, ln, k, float(i) * float(cycle) / float(n))
-            ln.trains.append(t)
-            trains.append(t)
+        var score := absf(float(i) - mid)
+        if stations[sid].is_interchange():
+            score += 100.0
+        if score < best_score:
+            best_score = score
+            best = i
+    if best < 0:
+        return int(float(k) / 2.0)
+    return best
 
 
 ## 把列车放到往返循环的第 phase 个段位置（0 .. 2(k-1)）。
@@ -220,11 +287,157 @@ func _place_train_at_phase(t: Train, ln: Line, k: int, phase: float) -> void:
     t.state = Train.TrainState.MOVING
 
 
-## 列车在往返循环上的相位（单位=段），用于判断同线列车是否扎堆。
-func _train_phase(t: Train, k: int) -> float:
-    if t.direction > 0:
-        return float(t.from_idx) + t.progress
-    return float((k - 1) * 2) - (float(t.from_idx) - t.progress)
+# ================= 无限模式：线网扩张 =================
+#
+# 无限模式没有"时间到"，只有"撑不住"。导演（InfiniteDirector）负责节奏，
+# 这里只提供三件"施工"能力：量出可造站的范围、造一个新站、加一条新线。
+# 关键约束：新站必须落在初始站点外接矩形内 —— 相机三段锚点是在 setup 时
+# 按当时的地图算出来的，让新站跑出原范围的话玩家会看到站飘到视野外。
+
+## 初始站点的外接矩形（新站只造在里面）
+func _compute_map_rect() -> Rect2:
+    if stations.is_empty():
+        return Rect2()
+    var mn: Vector2 = stations[0].position
+    var mx: Vector2 = stations[0].position
+    for st in stations:
+        mn.x = minf(mn.x, st.position.x)
+        mn.y = minf(mn.y, st.position.y)
+        mx.x = maxf(mx.x, st.position.x)
+        mx.y = maxf(mx.y, st.position.y)
+    return Rect2(mn, mx - mn)
+
+
+## 造一个新站：以随机"母站"为中心抖动一小段距离，并要求离所有已有站至少 55。
+## 返回新站 id；找不到位置时返回 -1（此时这一波就只加线不加站）。
+##
+## 线路已到上限时直接拒绝造站：新站必须靠同波新建的线接进线网，否则它会是
+## 一个"永远没人能到达"的孤岛 —— 客流照常在那儿刷出来，却一辆车都不来。
+func add_infinite_station() -> int:
+    if stations.is_empty():
+        return -1
+    if lines.size() >= int(Config.INFINITE["max_lines"]):
+        return -1
+    var rect := _map_rect
+    if rect.size.x <= 1.0 or rect.size.y <= 1.0:
+        return -1
+    var jmin := float(Config.INFINITE["station_jitter_min"])
+    var jmax := float(Config.INFINITE["station_jitter_max"])
+    var pos := Vector2.ZERO
+    var ok := false
+    for attempt in range(24):
+        var mother: Station = stations[randi() % stations.size()]
+        var ang := randf() * TAU
+        var dist := randf_range(jmin, jmax)
+        pos = mother.position + Vector2(cos(ang), sin(ang)) * dist
+        pos.x = clampf(pos.x, rect.position.x, rect.end.x)
+        pos.y = clampf(pos.y, rect.position.y, rect.end.y)
+        if _is_far_from_all(pos, 55.0):
+            ok = true
+            break
+    if not ok:
+        return -1
+
+    var st := Station.new()
+    st.id = stations.size()
+    st.name = _infinite_station_name(st.id)
+    st.position = pos
+    st.capacity = randi_range(90, 160)
+    stations.append(st)
+    # 权重表是按数组下标对齐的，新站必须同步补格子，否则 _pick_origin 的越界保护
+    # 会让它永远派不出人（新站就成了摆设）。
+    spawn_weights.append(1.0)
+    dest_weights.append(1.35)   # 稍微偏向"成为目的地"，逼玩家把线接过去
+    return st.id
+
+
+func _is_far_from_all(p: Vector2, min_dist: float) -> bool:
+    for st in stations:
+        if st.position.distance_to(p) < min_dist:
+            return false
+    return true
+
+
+func _infinite_station_name(sid: int) -> String:
+    var a := ["新港", "西湾", "青桥", "南塘", "北岭", "云浦", "沙洲", "柳岸", "石泉", "枫林"]
+    var b := ["东", "南", "西", "北", "中"]
+    return "%s%s%d" % [a[sid % a.size()], b[(sid / a.size()) % b.size()], sid]
+
+
+## 加一条新线。near_sids 是这一波刚造出来的新站，会被优先编进路线。
+## 返回新线 id；线路已到上限或找不到合适路线时返回 -1。
+func add_infinite_line(near_sids: Array[int] = []) -> int:
+    if stations.size() < 2:
+        return -1
+    if lines.size() >= int(Config.INFINITE["max_lines"]):
+        return -1
+    var route := _walk_route(near_sids)
+    if route.size() < 2:
+        return -1
+
+    var ln := Line.new()
+    ln.id = _next_line_id()
+    ln.name = "临线 %d" % ln.id
+    ln.color = Config.line_color(ln.id)
+    ln.headway = randf_range(9.0, 14.0)
+    ln.base_speed = randf_range(100.0, 130.0)
+    ln.depot_station_override = -1
+    ln.station_ids = route
+    for sid in route:
+        if sid >= 0 and sid < stations.size() and not stations[sid].lines.has(ln.id):
+            stations[sid].lines.append(ln.id)
+    lines.append(ln)
+
+    # 拓扑变了：邻接表、站内线路位置表、权重都要重建，否则寻路会走在旧图上
+    _build_adjacency()
+    _precompute_weights()
+    _spawn_trains_for_line(ln)
+    return ln.id
+
+
+func _next_line_id() -> int:
+    var m := -1
+    for ln in lines:
+        m = maxi(m, ln.id)
+    return m + 1
+
+
+## 随机游走出一条新线：优先从新站起步，然后每一步都跳到"最近的、还没用过的"站，
+## 并且相邻两站距离不超过 max_leg_dist —— 这样新线既是可读的折线，又真的会开出新边
+## （新站离母站 60~130 < 170，所以新站一定能被连上，不会变成孤岛）。
+func _walk_route(near_sids: Array[int]) -> Array[int]:
+    var max_leg := float(Config.INFINITE["max_leg_dist"])
+    var want := randi_range(int(Config.INFINITE["line_min_stops"]), int(Config.INFINITE["line_max_stops"]))
+    var start := -1
+    if not near_sids.is_empty():
+        start = near_sids[randi() % near_sids.size()]
+    else:
+        # 没有新站时，偏向从"线路最少的站"起步，让线网长成网而不是全堆在一处
+        var best_deg := 1 << 30
+        for i in range(stations.size()):
+            var d := stations[i].lines.size()
+            if d < best_deg or (d == best_deg and randf() < 0.4):
+                best_deg = d
+                start = i
+    if start < 0 or start >= stations.size():
+        start = randi() % stations.size()
+
+    var route: Array[int] = [start]
+    while route.size() < want:
+        var cur: Station = stations[route[route.size() - 1]]
+        var cand := -1
+        var cand_d := INF
+        for i in range(stations.size()):
+            if route.has(i):
+                continue
+            var d := cur.position.distance_to(stations[i].position)
+            if d <= max_leg and d < cand_d:
+                cand_d = d
+                cand = i
+        if cand < 0:
+            break
+        route.append(cand)
+    return route
 
 
 # ================= 主循环 =================
@@ -241,6 +454,10 @@ func tick(delta: float) -> void:
 
     if events:
         events.tick(delta)
+
+    # 无限模式导演：到点就往线网里塞新站/新线，并把客流与事件密度往上推
+    if director != null:
+        director.tick(delta)
 
     _spawn_passengers(delta)
     _update_trains(delta)
@@ -484,6 +701,8 @@ func _update_trains(delta: float) -> void:
     for t in trains:
         var ln: Line = lines[t.line_id]
         var k := ln.station_ids.size()
+        # 延误自然恢复
+        t.delay = maxf(0.0, t.delay - delta * 0.6)
         if t.state == Train.TrainState.MOVING:
             var a: Vector2 = stations[ln.station_ids[t.from_idx]].position
             var b: Vector2 = stations[ln.station_ids[t.to_idx]].position
@@ -494,6 +713,10 @@ func _update_trains(delta: float) -> void:
                 var speed_mult := weather.get_speed_multiplier()
                 if t.delay > 20.0:
                     speed_mult *= 0.85
+                # 出站加速 / 进站减速：把段内进度映射成速度倍率。
+                # 该曲线已按面积归一化（Config.TRAIN_PROFILE_MEAN），所以**全程平均速度不变**——
+                # 只改变速度分布（观感），不会悄悄把所有车的运力调高或调低。
+                speed_mult *= Config.train_speed_factor(t.progress)
                 t.progress += (t.speed * speed_mult * delta) / seg_len
             if t.progress >= 1.0:
                 t.progress = 0.0
@@ -501,10 +724,13 @@ func _update_trains(delta: float) -> void:
                 _arrive_train(t, ln, k)
         else:
             t.dwell_timer -= delta
-            if t.dwell_timer <= 0.0:
+            # 加挂中：编组工时与停站时间一起走完。车全程留在线上，运力不中断。
+            if t.coupling:
+                t.couple_timer -= delta
+            if t.dwell_timer <= 0.0 and t.couple_timer <= 0.0:
+                if t.coupling:
+                    _finish_coupling(t, ln)
                 _depart_train(t, ln, k)
-        # 延误自然恢复
-        t.delay = maxf(0.0, t.delay - delta * 0.6)
 
 
 func _arrive_train(t: Train, ln: Line, k: int) -> void:
@@ -541,6 +767,12 @@ func _arrive_train(t: Train, ln: Line, k: int) -> void:
     var hw := ln.effective_headway()
     var wait := clampf(hw - since, t.dwell_time, hw)
     t.dwell_timer = maxf(t.dwell_timer, wait)
+
+    # 加挂（A）：车辆段就在这一站、且还有没兑现的加挂指令 —— 就地多停几秒加一节车厢。
+    # 车不出线路，所以不会像旧版那样把整列车的运力抽走（台北两条线各只有 2 列车，
+    # 抽走 1 列 = 该线运力腰斩、班次从 12s 翻到 25s，满意度直接掉 0.16）。
+    if _try_start_coupling(t, ln, sid, st):
+        t.dwell_timer = maxf(t.dwell_timer, t.couple_total)
 
     # 下车
     var alighting: Array = []
@@ -715,7 +947,8 @@ func _check_failure() -> void:
     if stations.size() > 0 and overcrowded > stations.size() * 0.4:
         _game_over("全网瘫痪：过多站点超载")
         return
-    if elapsed >= duration:
+    # 无限模式不看钟：没有"时间到"，只有撑不住（duration == 0）
+    if not infinite_mode and elapsed >= duration:
         _game_over("时间到")
 
 
@@ -724,6 +957,12 @@ func _game_over(reason: String) -> void:
         return
     running = false
     var m := score.metrics()
+    # 无限模式的"成绩"是撑到第几波、线网长到多大，一并塞进 metrics 交给结算界面
+    if infinite_mode and director != null:
+        m["infinite"] = true
+        m["wave"] = director.wave
+        m["stations"] = stations.size()
+        m["lines"] = lines.size()
     EventBus.game_over.emit(reason, m)
 
 
@@ -767,36 +1006,74 @@ func apply_operation(op: String, target_id: int) -> void:
         return
     match op:
         "limit":
+            var lcost := Config.operation_cost("limit")
+            if not _spend(lcost, "限流"):
+                return
             var st: Station = stations[target_id]
             st.entry_limit = limit_power
             _add_timed("limit", target_id, 30.0)
             _damage_station_patience(st, 0.05)
             EventBus.operation_applied.emit("limit", target_id)
-            EventBus.toast.emit("限流 %s" % st.name)
-        "add_train":
-            if resources < add_train_cost:
-                EventBus.toast.emit("资源不足，无法加车")
+            EventBus.toast.emit("限流 %s（-%.0f 资源）" % [st.name, lcost])
+        "upgrade_train":
+            var dline: Line = lines[target_id]
+            # 第一步：该线还没有车辆段 —— 先建段（一次性投入）
+            if not dline.depot_built:
+                var build_cost := depot_build_cost(target_id)
+                if not _spend(build_cost, "建车辆段"):
+                    return
+                dline.depot_built = true
+                EventBus.operation_applied.emit("depot_build", target_id)
+                EventBus.toast.emit("车辆段落成：%s（再点一次下达加挂指令）" % dline.name)
                 return
-            resources -= add_train_cost
-            _add_train_to_line(target_id)
-            EventBus.operation_applied.emit("add_train", target_id)
-            EventBus.toast.emit("已加车：%s" % lines[target_id].name)
+            # 第二步：下达加挂指令 —— 线路上下一列停靠段站的列车就地加长编组
+            if dline.pending_couples > 0:
+                EventBus.toast.emit("车辆段已有一张加挂指令在等车停靠")
+                return
+            if not _has_couplable_train(dline):
+                EventBus.toast.emit("%s 已无车可加挂（单列上限 %d 节）" % [
+                    dline.name, int(Config.DEPOT["max_cars"])])
+                return
+            var dsid := dline.depot_station_id()
+            if dsid < 0:
+                EventBus.toast.emit("%s 没有可用的车辆段车站" % dline.name)
+                return
+            var dst: Station = stations[dsid]
+            if dst.closed or dst.skip_trains:
+                EventBus.toast.emit("%s 正在封站/跳站，列车停不下来，无法加挂" % dst.name)
+                return
+            var dcost := depot_upgrade_cost(target_id)
+            if not _spend(dcost, "加挂编组"):
+                return
+            dline.pending_couples += 1
+            EventBus.operation_applied.emit("depot_order", target_id)
+            EventBus.toast.emit("%s 加挂指令已下（%s %.0fs · -%.0f 资源）：下一班停靠 %s 的列车加 1 节" % [
+                dline.name, depot_phase(), depot_couple_dwell(), dcost, dst.name])
         "close":
+            var ccost := Config.operation_cost("close")
+            if not _spend(ccost, "封站"):
+                return
             var st2: Station = stations[target_id]
             st2.closed = true
             _add_timed("close", target_id, 20.0)
             _damage_station_patience(st2, 0.3 * close_penalty_mult)
             EventBus.operation_applied.emit("close", target_id)
-            EventBus.toast.emit("封站 %s" % st2.name)
+            EventBus.toast.emit("封站 %s（-%.0f 资源）" % [st2.name, ccost])
         "skip":
+            var kcost := Config.operation_cost("skip")
+            if not _spend(kcost, "跳站"):
+                return
             var st3: Station = stations[target_id]
             st3.skip_trains = true
             _add_timed("skip", target_id, 20.0)
             EventBus.operation_applied.emit("skip", target_id)
-            EventBus.toast.emit("跳站 %s" % st3.name)
+            EventBus.toast.emit("跳站 %s（-%.0f 资源）" % [st3.name, kcost])
         "broadcast":
             if broadcast_cooldown > 0.0:
                 EventBus.toast.emit("广播冷却中 %.0fs" % broadcast_cooldown)
+                return
+            var bcost := Config.operation_cost("broadcast")
+            if not _spend(bcost, "广播"):
                 return
             broadcast_cooldown = broadcast_cooldown_max
             for st in stations:
@@ -811,7 +1088,21 @@ func apply_operation(op: String, target_id: int) -> void:
             demand_event_mult *= 0.9
             _add_timed("demand", -1, 30.0, 0.9)
             EventBus.operation_applied.emit("broadcast", -1)
-            EventBus.toast.emit("广播引导：%d 名乘客开始改道" % informed)
+            EventBus.toast.emit("广播引导：%d 名乘客开始改道（-%.0f 资源）" % [informed, bcost])
+
+
+## 扣资源（D）：所有玩家操作共用这一个出口 —— 不够就提示并拒绝，方便统一调价。
+func _spend(amount: float, what: String) -> bool:
+    if amount <= 0.0:
+        return true
+    if resources < amount:
+        EventBus.toast.emit("资源不足：%s 需要 %.0f（现有 %.0f）" % [what, amount, resources])
+        return false
+    resources -= amount
+    # 玩家的每一次花钱操作都进运营日志（瞬时记录）
+    if ops_log != null:
+        ops_log.note_point("operation", "%s（-%.0f 资源）" % [what, amount], elapsed, time.get_hour_label())
+    return true
 
 
 func _damage_station_patience(st: Station, amount: float) -> void:
@@ -819,43 +1110,98 @@ func _damage_station_patience(st: Station, amount: float) -> void:
         p.patience = maxf(0.0, p.patience - amount)
 
 
-func _add_train_to_line(line_id: int) -> void:
+# ================= 车辆段（就地加挂编组） =================
+
+## 当前客流负荷 0..1：0 = 平峰，1 = 高峰（时刻需求曲线 × 天气）。
+## 「分时规划」的那个"时"就是这个值 —— 平峰加挂又快又便宜，高峰又慢又贵。
+func _demand_load() -> float:
+    var d := time.get_demand_multiplier() * weather.get_demand_multiplier()
+    var lo := float(Config.DEPOT["load_low"])
+    var hi := float(Config.DEPOT["load_high"])
+    return clampf((d - lo) / maxf(hi - lo, 0.0001), 0.0, 1.0)
+
+
+## 分时档位名（UI 用）
+func depot_phase() -> String:
+    var l := _demand_load()
+    if l < 0.35:
+        return "平峰"
+    if l < 0.70:
+        return "常态"
+    return "高峰"
+
+
+## 这次加挂要占站台几秒（平峰 5s，高峰 12s）
+func depot_couple_dwell() -> float:
+    var lo := float(Config.DEPOT["couple_dwell_flat"])
+    var hi := float(Config.DEPOT["couple_dwell_peak"])
+    return lerpf(lo, hi, _demand_load()) * depot_duration_scale
+
+
+## 分时价格系数（平峰 0.75，高峰 1.35）
+func depot_cost_mult() -> float:
+    return lerpf(float(Config.DEPOT["cost_flat"]), float(Config.DEPOT["cost_peak"]), _demand_load())
+
+
+## 建车辆段要多少钱（价格随时刻浮动，所以所有报价都带时间）
+func depot_build_cost(line_id: int) -> float:
+    return float(Config.DEPOT["build_cost"]) * depot_cost_mult() * depot_cost_scale
+
+
+## 该线下一次加挂要多少钱（每加挂一次就更贵，逼玩家分配资源）
+func depot_upgrade_cost(line_id: int) -> float:
     var ln: Line = lines[line_id]
-    var k := ln.station_ids.size()
-    if k < 2:
-        return
-    var t := Train.new()
-    t.id = next_train_id
-    next_train_id += 1
-    t.line_id = line_id
-    t.capacity = 80
-    t.speed = ln.base_speed
-    # 插到整趟往返里最空的一段，避免新车叠在既有列车头上（同站同方向多车）
-    _place_train_at_phase(t, ln, k, _largest_gap_phase(ln, k))
-    ln.trains.append(t)
-    trains.append(t)
+    var n := 0
+    if ln != null:
+        n = ln.depot_upgrades
+    var base := float(Config.DEPOT["base_cost"])
+    var mult := (1.0 + float(n) * float(Config.DEPOT["cost_growth"])) * depot_cost_mult() * depot_cost_scale
+    return base * mult
 
 
-## 找到该线往返循环上两车之间最大的空隙，返回其中点相位；线上无车时从头开始。
-func _largest_gap_phase(ln: Line, k: int) -> float:
-    var cycle := float((k - 1) * 2)
-    var phases: Array = []
-    for t in trains:
-        if t.line_id == ln.id:
-            phases.append(_train_phase(t, k))
-    if phases.is_empty():
-        return 0.0
-    phases.sort()
-    var best_len := -1.0
-    var best_mid := 0.0
-    for i in range(phases.size()):
-        var a := float(phases[i])
-        var b := float(phases[(i + 1) % phases.size()])
-        var gap := fposmod(b - a, cycle)
-        if gap > best_len:
-            best_len = gap
-            best_mid = fposmod(a + gap * 0.5, cycle)
-    return best_mid
+## 该线还有没有编得动的车（没到单列上限就还能加挂）
+func _has_couplable_train(ln: Line) -> bool:
+    var cap := int(Config.DEPOT["max_cars"])
+    for t in ln.trains:
+        if t.cars < cap:
+            return true
+    return false
+
+
+## 该线车辆段是否忙（有指令在等车，或有车正在段站加挂）
+func depot_busy(line_id: int) -> bool:
+    var ln: Line = lines[line_id]
+    return ln != null and ln.depot_busy()
+
+
+## 列车停靠段站时尝试开工加挂：条件满足就多停几秒，工时走完由 _finish_coupling 收尾
+func _try_start_coupling(t: Train, ln: Line, sid: int, st: Station) -> bool:
+    if not ln.depot_built or ln.pending_couples <= 0:
+        return false
+    if t.coupling or sid != ln.depot_station_id():
+        return false
+    if t.cars >= int(Config.DEPOT["max_cars"]):
+        return false
+    t.coupling = true
+    t.couple_total = depot_couple_dwell()
+    t.couple_timer = t.couple_total
+    EventBus.operation_applied.emit("couple_start", ln.id)
+    EventBus.toast.emit("%s：列车停靠 %s 加挂编组（%s %.0fs）" % [
+        ln.name, st.name, depot_phase(), t.couple_total])
+    return true
+
+
+## 加挂完成：加一节车厢、刷新定员、兑现一张指令
+func _finish_coupling(t: Train, ln: Line) -> void:
+    t.coupling = false
+    t.couple_timer = 0.0
+    t.couple_total = 0.0
+    t.cars += int(Config.DEPOT["cars_per_upgrade"])
+    t.refresh_capacity()
+    ln.depot_upgrades += 1
+    ln.pending_couples = maxi(0, ln.pending_couples - 1)
+    EventBus.operation_applied.emit("couple_done", ln.id)
+    EventBus.toast.emit("%s 编组延长至 %d 节（定员 %d）" % [ln.name, t.cars, t.capacity])
 
 
 # ================= 肉鸽升级 / 事件 =================
@@ -868,8 +1214,10 @@ func apply_upgrade(id: String) -> void:
         "smart_broadcast":
             broadcast_power += 0.15
             broadcast_cooldown_max += 30.0
-        "spare_train":
-            add_train_cost *= 0.7
+        "depot_shop":
+            # 检修车间：加挂更便宜、占站台更短
+            depot_cost_scale *= 0.7
+            depot_duration_scale *= 0.8
         "wide_platform":
             for st in stations:
                 st.capacity = int(st.capacity * 1.25)
@@ -879,35 +1227,98 @@ func apply_upgrade(id: String) -> void:
     EventBus.upgrade_chosen.emit(EventSystem.upgrade_by_id(id))
 
 
+## 场馆类事件：**只落在真实场馆所在的站**（依据查 `RealWorld`，表在 resources/real_world.json）
+func _venue_event(kind: String) -> bool:
+    var venue := RealWorld.pick_venue(network_id, kind)
+    if venue.is_empty():
+        return false
+    var sid := _station_id_by_name(str(venue["station"]))
+    if sid < 0:
+        return false
+    var meta: Dictionary = RealWorld.event_kinds().get(kind, {})
+    var burst := int(meta.get("burst", 12))
+    _spawn_burst(sid, burst)
+    var label := str(meta.get("label", kind))
+    var text := "%s：%s（%s 站）" % [label, str(venue["name"]), stations[sid].name]
+    EventBus.toast.emit(text)
+    _log_event(text, {"station": sid})
+    return true
+
+
+func _station_id_by_name(nm: String) -> int:
+    for st in stations:
+        if st.name == nm:
+            return st.id
+    return -1
+
+
+func _log_event(text: String, ref: Dictionary = {}) -> void:
+    if ops_log != null:
+        ops_log.note_point("event", text, elapsed, time.get_hour_label(), ref)
+
+
 func apply_event(id: String) -> void:
     match id:
-        "concert":
-            var sid := randi_range(0, stations.size() - 1)
-            _spawn_burst(sid, 18)
-            EventBus.toast.emit("演唱会散场：%s 站涌入大客流" % stations[sid].name)
-        "heavy_rain":
-            weather.trigger_timed("heavy_rain", 40.0)
-            EventBus.toast.emit("暴雨来袭，列车减速")
+        # ---- 场馆类：只发生在真实场馆所在的站 ----
+        "concert", "sports", "exhibition", "temple_fair", "night_market", "tourism", "countdown", "rail_hub":
+            if _venue_event(id):
+                return
+            # 这张图没有对应场馆：退化成"某个客流大站涌入"（仍然记日志）
+            var any := _busiest_station_id()
+            _spawn_burst(any, 12)
+            var t2 := "%s（%s 站）" % [id, stations[any].name]
+            EventBus.toast.emit(t2)
+            _log_event(t2, {"station": any})
+        # ---- 设施类：某站/某线随机（现实中哪站都可能出故障，不需要依据） ----
         "signal_fault":
             var lid := randi_range(0, lines.size() - 1)
             for t in trains:
                 if t.line_id == lid:
                     t.delay += randf_range(15.0, 30.0)
-            EventBus.toast.emit("信号故障：%s 延误传播" % lines[lid].name)
+            var tf := "信号故障：%s 延误传播" % lines[lid].name
+            EventBus.toast.emit(tf)
+            _log_event(tf)
         "exit_closed":
             var sid2 := randi_range(0, stations.size() - 1)
             stations[sid2].capacity_mod *= 0.7
             _add_timed("capacity", sid2, 30.0, 0.7)
-            EventBus.toast.emit("出口关闭：%s 容量 -30%%" % stations[sid2].name)
+            var tc := "出口关闭：%s 容量 -30%%" % stations[sid2].name
+            EventBus.toast.emit(tc)
+            _log_event(tc)
         "fare_off":
             demand_event_mult *= 1.15
             _add_timed("demand", -1, 60.0, 1.15)
             EventBus.toast.emit("票价优惠：需求 +15%")
+            _log_event("票价优惠：需求 +15%")
         "maintenance":
             var sid3 := randi_range(0, stations.size() - 1)
             stations[sid3].entry_limit = 0.5
             _add_timed("maintenance", sid3, 30.0)
-            EventBus.toast.emit("设备检修：%s 闸机效率 -50%%" % stations[sid3].name)
+            var tm := "设备检修：%s 闸机效率 -50%%" % stations[sid3].name
+            EventBus.toast.emit(tm)
+            _log_event(tm)
+        # ---- 天气类：交给 WeatherSystem（它会自己记日志） ----
+        "heavy_rain":
+            weather.trigger_timed("heavy_rain", 40.0)
+            EventBus.toast.emit("暴雨来袭，列车减速")
+        "typhoon":
+            weather.trigger_timed("typhoon", 50.0)
+            EventBus.toast.emit("台风过境：全线减速、客流骤降")
+        "thunderstorm":
+            weather.trigger_timed("thunderstorm", 35.0)
+            EventBus.toast.emit("雷暴：短时强降雨")
+
+
+## 场馆空缺时退化用：当前排队最多的站
+func _busiest_station_id() -> int:
+    var best := 0
+    var best_q := -1
+    for st in stations:
+        var q := st.queue.size()
+        if q > best_q:
+            best_q = q
+            best = st.id
+    return best
 
 
 # ================= 查询 =================

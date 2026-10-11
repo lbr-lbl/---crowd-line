@@ -34,6 +34,7 @@ const SNAP_DELAY := 0.3              # 滚轮停下多久后回弹到锚点（�
 const ZOOM_SMOOTH := 11.0            # 缩放趋近速度（越大越跟手）
 const PAN_SMOOTH := 9.0              # 平移趋近速度
 const CLICK_THRESHOLD := 6.0         # 点击 vs 拖拽判定（像素）
+const SHAKE_PX := 9.0               # 震屏满振幅对应的屏幕像素（够"有感觉"，不至于看不清线）
 
 # ---- 目标状态 ----
 var target_zoom: float = 0.9         # 期望缩放
@@ -57,6 +58,42 @@ var moved: float = 0.0
 
 # ---- 时间 ----
 var last_scroll_time: float = -100.0
+
+# ================= 镜头效果 =================
+# 全部效果都**只影响相机**（位置/缩放），不碰模拟层，所以不会改变任何平衡数值。
+
+## 地图包围盒（含余量），用于拖拽到边界时的橡皮筋回弹
+var map_min: Vector2 = Vector2.ZERO
+var map_max: Vector2 = Vector2.ZERO
+var bounds_ready: bool = false
+
+# 震屏：踩踏等突发事件时轻微抖动。振幅按屏幕像素给，衰减很快（不晕）。
+const SHAKE_DECAY := 0.9          # 每秒衰减掉的振幅比例
+var _shake: float = 0.0
+
+# 飞行（点日志 / 选中站点时平滑飞过去）
+const FLY_DUR := 0.55             # 全程秒数
+var _flying: bool = false
+var _fly_t: float = 0.0
+var _fly_from: Vector2 = Vector2.ZERO
+var _fly_to: Vector2 = Vector2.ZERO
+var _fly_zoom_from: float = 1.0
+var _fly_zoom_to: float = 1.0
+
+# 拖拽惯性：松手后按最后一段速度滑一小段再停
+const INERTIA_DECAY := 3.4        # 越大滑得越短
+var _vel: Vector2 = Vector2.ZERO
+var _glide: bool = false
+
+# 缩放"拉远-推近"过冲：每次滚轮先反向轻微过冲再回到目标，像镜头换挡
+const OVERSHOOT := 0.055
+var _zoom_visual: float = 1.0     # 实际渲染用的缩放倍率（= target_zoom × 过冲系数）
+var _overshoot: float = 0.0
+var _overshoot_vel: float = 0.0
+
+# 跟随列车（点列车切换）。位置由 TrainLayer 提供（它每帧算过列车世界坐标）
+var follow_train_id: int = -1
+var train_source: Node = null
 
 
 func setup(p_camera: Camera2D, p_sim: Simulation) -> void:
@@ -94,6 +131,11 @@ func _compute_bands() -> void:
 
     var map_w := maxf(max_p.x - min_p.x, 1.0)
     var map_h := maxf(max_p.y - min_p.y, 1.0)
+
+    # 拖拽边界的包围盒（留一点余量，让边缘的站不会被顶到屏幕正中）
+    map_min = min_p - Vector2(map_w, map_h) * 0.12
+    map_max = max_p + Vector2(map_w, map_h) * 0.12
+    bounds_ready = true
 
     var avg_edge := _avg_edge_len()
     if avg_edge <= 0.0:
@@ -181,23 +223,164 @@ func _process(delta: float) -> void:
     if zoom_focus_active:
         target_pos = _position_for_zoom(zoom_focus_world, zoom_focus_screen, camera.zoom.x)
 
-    # 3) 平滑逼近
+    # 3) 跟车：目标点直接钉在列车上（车在动，所以每帧更新）
+    if follow_train_id >= 0 and _update_follow():
+        pass
+
+    # 4) 飞行：用 easeInOutCubic 走完全程，期间接管位置与缩放
+    if _flying:
+        _fly_t = minf(_fly_t + delta / FLY_DUR, 1.0)
+        var e := _ease_in_out(_fly_t)
+        camera.position = _fly_from.lerp(_fly_to, e)
+        target_pos = camera.position
+        var zf := lerpf(_fly_zoom_from, _fly_zoom_to, e)
+        camera.zoom = Vector2(zf, zf)
+        target_zoom = _fly_zoom_to
+        if _fly_t >= 1.0:
+            _flying = false
+            last_scroll_time = now
+        _apply_shake(delta)
+        return
+
+    # 5) 惯性滑动
+    if _glide and not dragging:
+        if _vel.length() < 1.0:
+            _glide = false
+            _vel = Vector2.ZERO
+        else:
+            camera.position += _vel * delta
+            target_pos = camera.position
+            _vel = _vel.lerp(Vector2.ZERO, 1.0 - exp(-INERTIA_DECAY * delta))
+
+    # 6) 平滑逼近（缩放的"拉远-推近"过冲叠在 target_zoom 上，不影响回弹逻辑）
+    _overshoot_vel += -_overshoot * 46.0 * delta
+    _overshoot_vel *= exp(-9.0 * delta)
+    _overshoot += _overshoot_vel * delta
     var zoom_lerp := 1.0 - exp(-ZOOM_SMOOTH * delta)
     var pan_lerp := 1.0 - exp(-PAN_SMOOTH * delta)
-    camera.zoom = camera.zoom.lerp(Vector2(target_zoom, target_zoom), zoom_lerp)
+    _zoom_visual = target_zoom * (1.0 + _overshoot)
+    camera.zoom = camera.zoom.lerp(Vector2(_zoom_visual, _zoom_visual), zoom_lerp)
     camera.position = camera.position.lerp(target_pos, pan_lerp)
 
-    # 4) 视野是否已稳定停在某一段锚点（渲染层据此把站点画成实心 ●）
+    # 7) 边界：越界时橡皮筋拉回（松手后 target_pos 已被夹住，会平滑弹回）
+    if bounds_ready:
+        camera.position = _rubber_band(camera.position)
+
+    _apply_shake(delta)
+
+    # 8) 视野是否已稳定停在某一段锚点（渲染层据此把站点画成实心 ●）
     band_settled = (
         (not dragging)
         and (not snapping)
+        and (not _flying)
         and absf(target_zoom - _band_anchor(target_zoom)) < 0.002
     )
+
+
+## 震屏：把抖动作为**额外**偏移叠在相机位置上，不写回 target_pos，所以不会漂移
+func _apply_shake(delta: float) -> void:
+    if _shake <= 0.0001:
+        _shake = 0.0
+        return
+    var amp := _shake * SHAKE_PX / maxf(camera.zoom.x, 0.01)
+    camera.position += Vector2(randf_range(-amp, amp), randf_range(-amp, amp))
+    _shake = maxf(0.0, _shake - delta * SHAKE_DECAY * (0.6 + _shake))
+
+
+static func _ease_in_out(t: float) -> float:
+    if t < 0.5:
+        return 4.0 * t * t * t
+    return 1.0 - pow(-2.0 * t + 2.0, 3.0) * 0.5
+
+
+## 橡皮筋：在允许范围外施加阻力，越拉越难，但松手会弹回
+func _rubber_band(p: Vector2) -> Vector2:
+    var vp := get_viewport().get_visible_rect().size / maxf(camera.zoom.x, 0.01)
+    var lo := map_min - vp * 0.5
+    var hi := map_max + vp * 0.5
+    var out := p
+    for axis in 2:
+        if p[axis] < lo[axis]:
+            out[axis] = lo[axis] - (lo[axis] - p[axis]) * 0.30
+        elif p[axis] > hi[axis]:
+            out[axis] = hi[axis] + (p[axis] - hi[axis]) * 0.30
+    return out
+
+
+## 越界（含橡皮筋余量）时把目标夹回允许范围
+func _clamp_target(p: Vector2) -> Vector2:
+    if not bounds_ready:
+        return p
+    var vp := get_viewport().get_visible_rect().size / maxf(camera.zoom.x, 0.01)
+    var lo := map_min - vp * 0.5
+    var hi := map_max + vp * 0.5
+    return Vector2(clampf(p.x, lo.x, hi.x), clampf(p.y, lo.y, hi.y))
+
+
+# ================= 对外接口（给事件 / UI 调用）=================
+
+## 震屏：amount 1.0 = 明显但不晕。踩踏用 1.0，单站恐慌用 0.35
+func shake(amount: float) -> void:
+    _shake = minf(1.4, _shake + amount)
+
+
+## 平滑飞到某个世界坐标；zoom > 0 时同时改变缩放（会按既有规则回弹到最近的段锚点）
+func fly_to(world: Vector2, zoom: float = 0.0) -> void:
+    _flying = true
+    _fly_t = 0.0
+    _fly_from = camera.position
+    _fly_to = _clamp_target(world)
+    _fly_zoom_from = camera.zoom.x
+    _fly_zoom_to = clampf(zoom, min_allowed_zoom, max_allowed_zoom) if zoom > 0.0 else camera.zoom.x
+    _glide = false
+    _vel = Vector2.ZERO
+    _snapshot_bands_for_fly()
+
+
+## 飞行的目标缩放如果不在段锚点上，落地后会被回弹逻辑拉到最近锚点——这是**故意**的：
+## 和滚轮缩放一致，停下来永远是 H/M/L 三段之一。
+func _snapshot_bands_for_fly() -> void:
+    zoom_focus_active = false
+    snapping = false
+
+
+## 开始 / 停止跟随某列车
+func set_follow(train_id: int) -> void:
+    follow_train_id = train_id
+    if train_id < 0:
+        return
+    _flying = false
+    _glide = false
+    _vel = Vector2.ZERO
+
+
+## 每帧把目标点钉到跟随列车上。返回 false 表示车没了（已解锁）
+func _update_follow() -> bool:
+    if train_source == null or not train_source.has_method("train_world_pos"):
+        follow_train_id = -1
+        return false
+    var wp = train_source.call("train_world_pos", follow_train_id)
+    if wp == null:
+        follow_train_id = -1
+        return false
+    target_pos = wp
+    zoom_focus_active = false
+    return true
+
 
 
 ## 是否已稳定停在某个视野段（供渲染层/UI 查询）。
 func is_settled() -> bool:
     return band_settled
+
+
+## 视野滑钮用：直接指定目标缩放。
+## 把 `last_scroll_time` 顶成"刚刚操作过"，0.3 秒内回弹逻辑就不会来抢；
+## 松手后仍按既有规则平滑回弹到最近的段锚点（与滚轮行为一致）。
+func set_zoom_target(z: float) -> void:
+    target_zoom = clampf(z, min_allowed_zoom, max_allowed_zoom)
+    last_scroll_time = _now()
+    zoom_focus_active = false
 
 
 ## 当前视野段名称 H/M/L（供 HUD 显示，对应效果图右侧那一栏）。
@@ -247,11 +430,19 @@ func _unhandled_input(event: InputEvent) -> void:
                 moved = 0.0
                 zoom_focus_active = false
                 snapping = false
+                _glide = false
+                _vel = Vector2.ZERO
+                _flying = false
                 last_scroll_time = _now()
             else:
                 dragging = false
                 if moved < CLICK_THRESHOLD:
                     _handle_click(mb.position)
+                else:
+                    # 松手进入惯性滑动；target_pos 先夹回边界，越界的话会平滑弹回
+                    _vel = _vel * 0.55
+                    _glide = _vel.length() > 40.0
+                    target_pos = _clamp_target(camera.position)
 
     elif event is InputEventMouseMotion:
         var mm := event as InputEventMouseMotion
@@ -259,10 +450,18 @@ func _unhandled_input(event: InputEvent) -> void:
             var delta_screen := mm.position - last_screen
             last_screen = mm.position
             moved += delta_screen.length()
-            # 拖拽平移：直接移动相机（1:1 跟手），并同步目标
-            camera.position -= delta_screen / camera.zoom.x
+            # 拖拽平移：直接移动相机（1:1 跟手），并同步目标。
+            # 越界部分被橡皮筋衰减（越拉越难），松手后弹回。
+            var raw := -delta_screen / camera.zoom.x
+            var before := camera.position
+            camera.position = _rubber_band(camera.position + raw)
+            var actual := camera.position - before
             target_pos = camera.position
+            # 惯性速度取实际位移（所以撞边界时惯性自然变小）
+            var inst := actual / maxf(mm.relative.length() / 600.0 + 0.0001, 0.0001)
+            _vel = _vel.lerp(actual * 60.0, 0.35)
             zoom_focus_active = false
+            _flying = false
             last_scroll_time = _now()
 
 
@@ -279,8 +478,13 @@ func _zoom_gesture(factor: float) -> void:
     zoom_focus_screen = screen
     zoom_focus_active = true
     snapping = false
+    _flying = false
+    _glide = false
+    _vel = Vector2.ZERO
     target_zoom = new_zoom
     last_scroll_time = _now()
+    # "拉远-推近"：换挡瞬间先往反方向轻轻冲一下，再弹回目标（弹簧）
+    _overshoot_vel += (-1.0 if factor > 1.0 else 1.0) * OVERSHOOT * 16.0
 
 
 func _world_mouse() -> Vector2:
@@ -303,9 +507,31 @@ func _handle_click(screen: Vector2) -> void:
             best_d = d
             best_st = st
     if best_st != null:
+        set_follow(-1)
         sim.select_station(best_st.id)
         EventBus.selection_changed.emit({"type": "station", "id": best_st.id})
+        # 点站点 -> **快速聚焦到该站（近景 L 视野）**，需求原文："点击站点则快速聚焦该站点（L视野）"
+        fly_to(best_st.position, fore_zoom)
+        EventBus.camera_focus.emit(best_st.position, best_st.id)
         return
+
+    # 再找列车：点中就开始**跟车**（相机会一直跟着它走，再点空白处解除）
+    if train_source != null and train_source.has_method("train_world_pos"):
+        var best_tr: Train = null
+        var best_td := 20.0 / camera.zoom.x
+        for t in sim.trains:
+            var wp = train_source.call("train_world_pos", t.id)
+            if wp == null:
+                continue
+            var dt: float = (wp as Vector2).distance_to(world)
+            if dt < best_td:
+                best_td = dt
+                best_tr = t
+        if best_tr != null:
+            sim.select_line(best_tr.line_id)
+            set_follow(best_tr.id)
+            EventBus.selection_changed.emit({"type": "train", "id": best_tr.id})
+            return
 
     # 再找线路
     var line_radius := 12.0 / camera.zoom.x
@@ -320,10 +546,23 @@ func _handle_click(screen: Vector2) -> void:
                 best_ld = d
                 best_ln = ln
     if best_ln != null:
+        set_follow(-1)
         sim.select_line(best_ln.id)
         EventBus.selection_changed.emit({"type": "line", "id": best_ln.id})
+        # 点线路 -> **聚焦到这条线的范围，视野为 H（全貌）**。
+        # H 本来就是看全图，所以这里做的是"把这条线的包围盒中心摆到画面中心"。
+        var lo: Vector2 = sim.stations[best_ln.station_ids[0]].position
+        var hi: Vector2 = lo
+        for sid2 in best_ln.station_ids:
+            var p2: Vector2 = sim.stations[sid2].position
+            lo.x = minf(lo.x, p2.x)
+            lo.y = minf(lo.y, p2.y)
+            hi.x = maxf(hi.x, p2.x)
+            hi.y = maxf(hi.y, p2.y)
+        fly_to((lo + hi) * 0.5, overview_zoom)
         return
 
+    set_follow(-1)
     sim.clear_selection()
     EventBus.selection_changed.emit({"type": "none", "id": -1})
 
