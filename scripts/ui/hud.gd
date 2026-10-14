@@ -64,8 +64,8 @@ func _ready() -> void:
 	_flatten_chrome()
 	_setup_rating_click()
 	_setup_resource_badge()
-	# 操作面板初始不显示（选中站点/线路时才从下升起）
-	_op_rest_y = op_panel.position.y
+	_setup_line_dots()
+	# 操作面板初始隐藏；它的静止位置等第一帧布局完成后再记（见 _animate_op_panel）
 	op_panel.visible = false
 
 
@@ -78,6 +78,11 @@ func _setup_rating_click() -> void:
 	rating_badge.tooltip_text = "悬浮看评分，点一下看运营指标"
 	rating_badge.gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
+			# **触屏没有悬浮**（需求："鼠标悬浮 -> 触摸长按"）。
+			# 徽章的"悬浮出评分"在触屏上永远不出现，所以按下时**先把评分显示出来**，
+			# 再切换运营指标面板 —— 触屏一次按压就能同时拿到这两样，
+			# 桌面端按下也显示评分，行为一致、不冲突。
+			_show_score()
 			metrics_panel.visible = not metrics_panel.visible)
 
 	score_label = Label.new()
@@ -151,6 +156,92 @@ func _flatten_chrome() -> void:
 		b.add_theme_color_override("font_normal_color", Config.COLOR_INK)
 		b.add_theme_color_override("font_hover_color", HOVER_COL)
 		b.add_theme_color_override("font_pressed_color", PRESS_COL)
+
+
+## 进入「站台内部」视图时，把**地图专属**的 HUD 淡出（视野滑钮 / 视野提示 / 时间轴）。
+## 它们是"看线网"用的工具，站台视图里留着只会和站台叠在一起（用户反馈"UI 错乱"）。
+## 评级、时钟、资源、日志与操作按钮保留——那些在两种视图下都有意义。
+func set_interior_mode(on: bool) -> void:
+	if _interior_on == on:
+		return
+	_interior_on = on
+	if _dot_row != null:
+		_dot_row.visible = on
+	var tw := create_tween()
+	tw.set_parallel(true)
+	# 视野滑钮不在这里管了：它自己做到"常隐，悬浮/拖动/滚轮操作时才显示"
+	for n in [band_label, time_axis]:
+		if n != null:
+			tw.tween_property(n, "modulate:a", 0.0 if on else 1.0, 0.28)
+
+
+var _interior_on: bool = false
+## 玩家**自己点过**站点/线路（相机带出来的"预选"不算）——决定地图视图下操作面板是否显示
+var _user_selected: bool = false
+## 站台视图里"正在拖动/按住屏幕" -> 操作栏降下去躲开
+var _hold: bool = false
+
+
+## 由 Game 每帧同步：站台视图里拖动或按住屏幕时，操作栏下降；松开上浮。
+## **只记录状态，不自己驱动动画** —— 动画统一交给每帧的 `_refresh_op_buttons()` 决定，
+## 否则两个驱动源会互相抢，表现就是"一拖动面板跳一下"。
+func set_hold_mode(h: bool) -> void:
+	_hold = h
+
+
+## 站台视图左上角的**线色圆点**：每条经过该站的线一个，点击切换站台视图看哪条线。
+## 为什么需要它：两线四轨四台**装不进一屏**（一屏只有约 80 世界单位高），
+## 所以站台视图一次只显示一条线，靠这些圆点切换。
+var _dot_row: HBoxContainer = null
+var _line_dots: Array = []
+var _line_dot_sig: String = ""
+
+
+func _setup_line_dots() -> void:
+	_dot_row = HBoxContainer.new()
+	_dot_row.name = "LineDots"
+	_dot_row.add_theme_constant_override("separation", 8)
+	_dot_row.position = Vector2(28, 118)
+	_dot_row.visible = false
+	add_child(_dot_row)
+
+
+func set_interior_lines(lines: Array, current: int) -> void:
+	if _dot_row == null:
+		return
+	_dot_row.visible = _interior_on
+	var sig := ""
+	for ln in lines:
+		sig += "%d:%s;" % [int(ln.id), (ln.color as Color).to_html(false)]
+	if sig != _line_dot_sig:
+		_line_dot_sig = sig
+		for d in _line_dots:
+			d.queue_free()
+		_line_dots.clear()
+		for ln in lines:
+			var b := Button.new()
+			b.custom_minimum_size = Vector2(28, 28)
+			b.tooltip_text = "看这条线的站台：%s" % str(ln.name)
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = ln.color
+			sb.set_corner_radius_all(14)
+			for k in ["normal", "hover", "pressed"]:
+				b.add_theme_stylebox_override(k, sb)
+			var lid: int = int(ln.id)
+			b.pressed.connect(func() -> void: _on_line_dot(lid))
+			_dot_row.add_child(b)
+			_line_dots.append(b)
+	# 选中态：当前那条全亮，其余半透明
+	for i in range(_line_dots.size()):
+		if i >= lines.size():
+			break
+		var sel := int(lines[i].id) == current or (current < 0 and i == 0)
+		(_line_dots[i] as Button).modulate.a = 1.0 if sel else 0.45
+
+
+func _on_line_dot(lid: int) -> void:
+	if game != null and game.has_method("focus_interior_line"):
+		game.focus_interior_line(lid)
 
 
 ## 卡片平时半透明。**只让背景变淡，不动 modulate** ——
@@ -692,16 +783,29 @@ func _on_selection(target: Dictionary) -> void:
 	if t == "station":
 		var st: Station = sim.get_station(target["id"])
 		if st:
+			_user_selected = true
+			_refresh_station_label()
+			_set_buttons(true)
+	elif t == "preselect":
+		# **相机带出来的选择**（M 视野自动吸附 / 进站台视图自动选中）：
+		# 站点确实被选中了（所以操作会作用到它），但**不算玩家点的** ——
+		# 因此操作面板不会因此在 M 视野里常驻（用户反馈的那条）。
+		var st2: Station = sim.get_station(int(target.get("id", -1)))
+		if st2:
+			_user_selected = false
 			_refresh_station_label()
 			_set_buttons(true)
 	elif t == "line":
+		_user_selected = true
 		_set_buttons(false)
 		_refresh_line_label(int(target.get("id", sim.selected_line_id)))
 	elif t == "train":
 		# 点了列车 = 开始跟车（镜头一直跟着它）
+		_user_selected = false
 		_set_buttons(false)
 		sel_label.text = "跟随列车中（点空白处解除）"
 	else:
+		_user_selected = false
 		sel_label.text = "未选择（点击站点或线路）"
 		_disable_buttons()
 
@@ -785,21 +889,39 @@ func _refresh_op_buttons() -> void:
 		var cost := _op_cost(key) if can_use else 0.0
 		b.tooltip_text = _op_tooltip(key, cost)
 		b.disabled = can_use and cost > 0.0 and sim.resources < cost
-	# 没有可用操作时整条面板降下去（需求："不点击线路和站点时什么都不要显现"）
+	# 站台视图：**常现**，按住/拖动屏幕时才降下去；地图视图：只有有可用操作时才升起。
+	#
+	# ⚠ **两个驱动源必须互斥**，否则拖动时会"跳一下"（用户反馈的 bug）：
+	# `set_hold_mode()` 让它降下去，而这里每帧又因为 `any_visible` 为真把它升回来 —— 互相抢。
+	# 现在统一由这里决定：`set_hold_mode()` 只记录状态，不再自己驱动动画。
 	op_row.visible = any_visible
-	_animate_op_panel(any_visible)
+	# 面板可见性只由两件事决定（用户两次反馈后定稿）：
+	#   · 在站台视图（L）里 -> **常现**；
+	#   · 玩家**自己点过**站点/线路 -> 显示；相机带出来的"预选"不算，所以缩回 M 后会收下去。
+	_animate_op_panel(_interior_on or _user_selected)
 
 
 ## 操作面板"从下升起 / 取消后下降"（需求）。
-## 起始位置在 `_ready` 里记下（面板靠 offsets 定位，直接读 position 即可）。
+## ⚠ 静止位置**不能在 `_ready` 里读**：那时容器还没算完布局，`position.y` 是 0，
+## 于是面板会升到屏幕顶部或被推到屏幕外（"显示有 bug"的根源）。
+## 改成等第一帧拿到真实尺寸后再记，记到之前不做动画。
 func _animate_op_panel(show_it: bool) -> void:
-	if op_panel == null or _op_shown == show_it:
+	if op_panel == null:
+		return
+	if not _op_rest_ready:
+		if op_panel.size.y < 1.0:
+			return
+		_op_rest_y = op_panel.position.y
+		_op_rest_ready = true
+		op_panel.visible = show_it
+		_op_shown = show_it
+		return
+	if _op_shown == show_it:
 		return
 	_op_shown = show_it
 	var down_y := _op_rest_y + op_panel.size.y + 30.0
 	if show_it:
 		op_panel.visible = true
-		op_panel.position.y = down_y
 	var tw := create_tween()
 	tw.tween_property(op_panel, "position:y", _op_rest_y if show_it else down_y, 0.22) \
 		.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -809,6 +931,7 @@ func _animate_op_panel(show_it: bool) -> void:
 
 var _op_shown: bool = false
 var _op_rest_y: float = 0.0
+var _op_rest_ready: bool = false
 
 
 ## 悬浮说明：名字 / 价格 / 效果 / 当前资源是否够（唯一的"详细信息"出口）

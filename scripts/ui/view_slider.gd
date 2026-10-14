@@ -18,7 +18,10 @@ var bands: Vector3 = Vector3(0.9, 3.2, 9.0)   # overview / mid / fore
 var value: float = 0.0
 var _dragging: bool = false
 var _hover: bool = false
+## "刚动过滚轮"的显示计时器：常隐，靠它 + 悬浮/拖动决定可见性（用户要求）
+var wake_t: float = 0.0
 
+const WAKE_SECONDS := 1.4
 const IDLE_ALPHA := 0.45
 const PAD := 16.0      # 轨道两端留白：这段就是"还能再走一点"的余量
 
@@ -42,29 +45,50 @@ func configure(p_min: float, p_max: float, p_overview: float, p_mid: float, p_fo
 	queue_redraw()
 
 
-# ---- 0..1 <-> 缩放（对数） ----
+# ---- 0..1 <-> 缩放 ----
+# **三个锚点分别映射到 0 / 0.5 / 1**（用户要求："滑钮在 M 视野时位于滑轨中间"）。
+# 之前是在 [min_zoom, max_zoom] 上做整体对数归一化，而锚点并不落在两端，
+# 所以 M 锚点算出来的 t 不是 0.5。每段内部仍用对数（缩放是乘性的，线性会挤在一头）。
 
 func t_of_zoom(z: float) -> float:
-	var lo := log(max_zoom / min_zoom)
-	if lo <= 0.0001:
-		return 0.0
-	return clampf(log(clampf(z, min_zoom, max_zoom) / min_zoom) / lo, 0.0, 1.0)
+	var zz := clampf(z, min_zoom, max_zoom)
+	if zz <= bands.y:
+		var a := log(maxf(zz, 0.0001) / bands.x) / log(maxf(bands.y / bands.x, 1.0001))
+		return clampf(a * 0.5, 0.0, 0.5)
+	var b := log(zz / bands.y) / log(maxf(bands.z / bands.y, 1.0001))
+	return clampf(0.5 + b * 0.5, 0.5, 1.0)
 
 
 func zoom_of_t(t: float) -> float:
-	return min_zoom * pow(max_zoom / min_zoom, clampf(t, 0.0, 1.0))
+	var tt := clampf(t, 0.0, 1.0)
+	if tt <= 0.5:
+		return bands.x * pow(maxf(bands.y / bands.x, 1.0001), tt / 0.5)
+	return bands.y * pow(maxf(bands.z / bands.y, 1.0001), (tt - 0.5) / 0.5)
 
 
-## 由相机当前缩放同步滑块位置（滚轮缩放也让"列车"跟着动）
+## 由相机当前缩放同步滑块位置（滚轮缩放也让"列车"跟着动）。
+## 顺带实现"**滚轮操作时显形**"：缩放值变了就把显示计时器顶起来。
 func set_from_zoom(z: float) -> void:
 	var t := t_of_zoom(z)
-	if absf(t - value) > 0.001:
+	if absf(t - value) > 0.004:
 		value = t
+		wake_t = WAKE_SECONDS
 		queue_redraw()
 
 
+func _process(delta: float) -> void:
+	if wake_t > 0.0:
+		wake_t = maxf(0.0, wake_t - delta)
+		queue_redraw()
+
+
+## **常隐**：只有悬浮、拖动、或刚动过滚轮时才看得见（用户要求）
 func _alpha() -> float:
-	return 1.0 if (_hover or _dragging) else IDLE_ALPHA
+	if _dragging or _hover:
+		return 1.0
+	if wake_t > 0.0:
+		return 0.75
+	return 0.0
 
 
 func _gui_input(event: InputEvent) -> void:

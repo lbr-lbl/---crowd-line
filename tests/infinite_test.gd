@@ -39,6 +39,7 @@ func _ready() -> void:
 	_test_timer()
 	_test_expansion()
 	_test_line_cap()
+	_test_no_duplicate_corridor()
 	_test_no_time_limit()
 	_test_normal_mode_still_ends()
 	print("=========== 失败 %d 项 ===========" % _fails)
@@ -149,6 +150,36 @@ func _test_line_cap() -> void:
 	_check(reached == sim.stations.size(), "到上限后仍全站可达",
 		"%d / %d" % [reached, sim.stations.size()])
 	_check(sim.lines.size() == cap, "一直加压直到顶满线路上限", "lines=%d" % sim.lines.size())
+	_drop(sim)
+
+
+## 回归：**新加入的线不应和旧线整段重叠**（用户反馈"无限模式新加入的线会和之前的线重叠"）。
+##
+## 根因：`_walk_route` 原本是"走到最近的未访问站"，而一个站的**最近邻往往正是旧线连过的站**，
+## 于是新线几乎是旧线的复制品。修法是重走旧走廊要乘 `REUSE_PENALTY`。
+##
+## 指标 = **重复走廊占比**：所有线的相邻站对里，被两条以上线共用的比例。
+## 这条断言就是"把用户的观感反馈变成数字"——没有它，改完选路只能靠感觉说"应该好了"。
+func _test_no_duplicate_corridor() -> void:
+	print("--- 新线不重走旧走廊 ---")
+	var sim := _new_sim("taipei_cross", "infinite")
+	for _i in range(10):
+		sim.director.advance_wave()
+	var seen := {}
+	var dup := 0
+	var total := 0
+	for ln in sim.lines:
+		for i in range(ln.station_ids.size() - 1):
+			var a: int = mini(int(ln.station_ids[i]), int(ln.station_ids[i + 1]))
+			var b: int = maxi(int(ln.station_ids[i]), int(ln.station_ids[i + 1]))
+			var key := "%d_%d" % [a, b]
+			total += 1
+			if seen.has(key):
+				dup += 1
+			seen[key] = true
+	var frac := 0.0 if total == 0 else float(dup) / float(total)
+	_check(frac < 0.40, "重复走廊占比 < 40%", "%d/%d = %.0f%%　线数=%d" % [
+		dup, total, frac * 100.0, sim.lines.size()])
 	_drop(sim)
 
 

@@ -27,6 +27,21 @@ var panic: float = 0.0
 var total_served: int = 0
 var total_boarded: int = 0
 
+# ---- 纯表现用的上下车标记（渲染层消费，**不参与任何判定**）----
+# 每项 = {"kind": 0 下车 / 1 上车, "side": 0 上站台 / 1 下站台}
+# 为什么放在模拟层：站位、上下车都是模拟层的事件，渲染层靠差分去猜必然出错
+# （互穿、凭空出现、做不出可靠的先下后上）。这里只给**顺序与侧别**，位置由渲染层安排。
+var pax_fx: Array = []
+## 标记数组的上限：只保留最近这些条，避免长局无限增长
+const PAX_FX_MAX := 160
+
+
+## 记一条上下车标记（超过上限就丢掉最旧的）
+func note_pax_fx(kind: int, side: int) -> void:
+	pax_fx.append({"kind": kind, "side": side})
+	if pax_fx.size() > PAX_FX_MAX:
+		pax_fx = pax_fx.slice(pax_fx.size() - PAX_FX_MAX)
+
 # 平滑后的密度（供渲染）
 var display_density: float = 0.0
 

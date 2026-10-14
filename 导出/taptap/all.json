@@ -1,0 +1,46 @@
+{
+    "app_id":  976215,
+    "developer_id":  341222,
+    "changes":  [
+                    {
+                        "field_id":  "icon",
+                        "force":  true,
+                        "value":  "424354"
+                    },
+                    {
+                        "field_id":  "screenshots",
+                        "force":  true,
+                        "value":  [
+                                      "424355",
+                                      "424356",
+                                      "424357",
+                                      "424358"
+                                  ]
+                    },
+                    {
+                        "field_id":  "banner_4",
+                        "force":  true,
+                        "value":  "424359"
+                    },
+                    {
+                        "field_id":  "promotion_material_type",
+                        "force":  true,
+                        "value":  "BANNER_4"
+                    },
+                    {
+                        "field_id":  "promotion_text",
+                        "force":  true,
+                        "value":  "不控制乘客，只调整规则，看人潮自己涌起来"
+                    },
+                    {
+                        "field_id":  "description",
+                        "force":  true,
+                        "value":  "你是一名地铁调度员。用线路、班次与限流规则，让早晚高峰的人潮在城市轨道上顺畅流动。每一条线、每一列车、每一个站台，都会因为你的决定而改变。"
+                    },
+                    {
+                        "field_id":  "developer_message",
+                        "force":  true,
+                        "value":  "这是一款关于「让系统自己动起来」的小游戏：你不控制乘客，只调整规则，然后看他们在站台上自行拥挤、排队、涌进车厢。"
+                    }
+                ]
+}

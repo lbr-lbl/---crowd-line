@@ -2,7 +2,10 @@ shader_type canvas_item;
 // 镂空胶囊车身。逐车数据走顶点 COLOR —— 一个 CanvasItem 里的多列车就能各自动各自的，
 // 不必每辆车一个材质：
 //   COLOR.r = 车速 0..1    COLOR.g = 正在减速 0..1
-//   COLOR.b = 停站剩余 1..0  COLOR.a = 载客率 0..1（镂空部分的填充量）
+//   COLOR.b = 停站剩余 1..0  COLOR.a = 载客率 0..1
+//
+// **载客率的表现 = 车身内部的不透明度**（用户选定：不要"液体"那套）。
+// 空车几乎是透的（只剩外壳），越挤内部越实。
 //
 // 形状用"超椭圆" `pow(|x|,n)+pow(|y|,n)` 表达圆角端：它与宽高比无关，
 // 所以同一条线上编组长度不同的车、以及远景拉长后的车，都不需要每辆车改 uniform。
@@ -10,13 +13,12 @@ shader_type canvas_item;
 uniform vec4 body_color : source_color = vec4(0.10, 0.70, 0.95, 1.0);
 uniform vec4 ink_color : source_color = vec4(0.09, 0.13, 0.22, 1.0);
 uniform float roundness : hint_range(1.5, 8.0) = 3.4;
-uniform float shell : hint_range(0.5, 0.98) = 0.80;  // 内壁位置：越小壳越厚
+// 内壁位置：越小壳越厚。**0.80 是回调过的值** —— 之前用 0.60 在 H/M 上显得轮廓过粗。
+uniform float shell : hint_range(0.3, 0.98) = 0.80;
 
 void fragment() {
 	vec2 p = UV * 2.0 - 1.0;   // -1..1
 	float speed = clamp(COLOR.r, 0.0, 1.0);
-	float brake = clamp(COLOR.g, 0.0, 1.0);
-	float dwell = clamp(COLOR.b, 0.0, 1.0);
 	float load  = clamp(COLOR.a, 0.0, 1.0);
 
 	// 超椭圆距离场：rr < 1 在车身内
@@ -27,32 +29,20 @@ void fragment() {
 	if (body <= 0.003) {
 		discard;
 	}
-	float inner = 1.0 - smoothstep(shell - aa, shell + aa, rr);
 
-	// 载客率：从左端向右填充内腔
-	float edge = -1.0 + 2.0 * load;
-	float fillmask = 1.0 - smoothstep(edge - aa * 2.0, edge + aa * 2.0, p.x);
-	float fill = inner * fillmask;
+	// 壳 = 描边带；内部 = 车身色（不透明度由载客率给）
+	float outer = smoothstep(shell - aa, shell + aa, rr);   // 1 = 在描边带里
+	// 描边**只比线路深一点**（原来是 ×0.42，H/M 上看着太深）
+	vec3 outline = mix(body_color.rgb, ink_color.rgb, 0.25);
+	vec3 col = mix(body_color.rgb, outline, outer);
 
-	vec3 outline = mix(ink_color.rgb, body_color.rgb, 0.88);
-	vec3 liquid = mix(body_color.rgb, vec3(1.0), 0.10);
+	// **载客率 = 内部不透明度**：空车几乎透（0.14），满车实心（1.0）
+	float interior_a = mix(0.14, 1.0, load);
+	float a = mix(interior_a, 1.0, outer);
 
-	// 灯带：车越快跑得越快（只在内腔里，像液体表面的一道反光）
-	float sweep = fract((p.x * 0.5 + 0.5) - TIME * (0.12 + speed * 0.75));
-	float band = exp(-pow((sweep - 0.5) / 0.22, 2.0)) * (0.18 + 0.42 * speed);
-	liquid = mix(liquid, vec3(1.0), band);
+	// 液面式的流动反光已随"液体"方案一起去掉，只留一点随车速的明暗呼吸，
+	// 让车在跑动时不至于完全静止。
+	a *= 1.0 - 0.10 * speed * (1.0 - load);
 
-	// 刹车灯：减速时尾端（-x）泛红
-	float tail = smoothstep(-0.35, -1.0, p.x) * brake;
-	liquid = mix(liquid, vec3(1.0, 0.28, 0.22), tail * 0.85);
-	outline = mix(outline, vec3(1.0, 0.38, 0.30), tail * 0.55);
-
-	// 车头灯：低速（正要进站）时前端更亮
-	float head = smoothstep(0.35, 1.0, p.x) * (1.0 - speed);
-	outline = mix(outline, vec3(1.0, 1.0, 0.88), head * 0.35);
-
-	// 停站：整体压暗半档，像灭了半灯
-	outline *= mix(1.0, 0.86, dwell * (1.0 - speed));
-
-	COLOR = vec4(mix(outline, liquid, fill), body);
+	COLOR = vec4(col, a * body);
 }

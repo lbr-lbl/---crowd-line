@@ -1,5 +1,9 @@
 class_name LineTrainView
 extends Node2D
+## 显示用的载客率（逐车、平滑过）。
+## 为什么要平滑：模拟层是**到站瞬间一次性把乘客卸完**的，直接拿它算不透明度会**跳变**。
+## 而且上车快（8/s）、下车慢（3/s）—— 用户要的是"乘客下车时列车颜色先平滑变淡些"。
+var _load_shown: Dictionary = {}
 ## 一条线上所有列车的绘制单元：持有该线颜色的车身材质。
 ##
 ## 车身是**镂空胶囊体**，镂空部分的填充量 = 载客率（着色器里按 UV 从左往右填）。
@@ -171,19 +175,24 @@ func _draw() -> void:
 		var brake := 0.0
 		if spd > 0.05 and t.progress > 0.55:
 			brake = clampf((t.progress - 0.55) / 0.45, 0.0, 1.0)
-		var load := clampf(float(t.passengers.size()) / maxf(1.0, float(t.capacity)), 0.0, 1.0)
+		var raw_load := clampf(float(t.passengers.size()) / maxf(1.0, float(t.capacity)), 0.0, 1.0)
+		var shown_load: float = float(_load_shown.get(t.id, raw_load))
+		var lrate: float = 8.0 if raw_load > shown_load else 3.0
+		shown_load = lerpf(shown_load, raw_load, 1.0 - exp(-lrate * get_process_delta_time()))
+		_load_shown[t.id] = shown_load
+		var load := shown_load
 
 		# 尺寸：**符号随缩放一起放大缩小**（Config.view_grow）——
 		# 全貌段（H）最小、越放大越大。之前我用 `TRAIN_FAR_LEN` 做成了"远景更长"，方向是反的。
 		var grow := Config.view_grow(z, zoom_bands.z)
 		var stretch := lerpf(0.90, 1.10, spd)
 		var len_px := (18.0 + 13.0 * float(t.cars)) * stretch * grow
-		var h_px := 15.0 * grow
+		var h_px := maxf(17.5 * grow, 9.5)   # 加粗；并保证**比线路（6 像素）宽**
 		var size := Vector2(Config.view_px(len_px, z), Config.view_px(h_px, z))
 
 		# 车身：**任何状态都画**。之前停站时把车身换成环，用户看到的是"列车进站直接消失了"。
-		# 一个 draw_rect 就够：形状（**镂空胶囊**）、内部填充量、灯带、刹车灯全在着色器里。
-		# 颜色四个通道是给着色器的数据（车速/刹车/停站剩余/载客率），不是真的颜色。
+		# 一个 draw_rect 就够：形状（镂空胶囊）、**载客率的不透明度**全在着色器里。
+		# COLOR 四通道是给着色器的数据（车速/刹车/停站剩余/载客率），不是真的颜色。
 		draw_set_transform(pos, ang, Vector2.ONE)
 		draw_rect(Rect2(-size * 0.5, size), Color(spd, brake, dwell, load), true)
 		draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)

@@ -1,4 +1,102 @@
 extends Node
+## 相机视野段行为：M 段吸附到最近站、L 段把相机夹在预选站附近。
+##
+## 为什么要单列一节：截图工具会 `set_process(false)` 关掉相机控制器，
+## 所以这两条行为**在截图里永远验证不到**，只能直接把 `_process` 跑起来看状态。
+func _check_camera_bands(game: Game) -> void:
+	print("--- 相机视野段行为 ---")
+	var cc: CameraController = game.camera_ctrl
+	var sim: Simulation = game.sim
+	if cc == null or sim == null or sim.stations.is_empty():
+		print("  !! 缺相机或模拟，跳过")
+		return
+	var st: Station = sim.stations[2]
+	# M 段：把相机放在该站附近偏一点，跑若干帧，看它是否收向站心、预选是否命中
+	cc.dragging = false
+	cc.target_zoom = cc.mid_zoom
+	cc.target_pos = st.position + Vector2(30.0, 12.0)
+	for _i in range(150):
+		cc._process(0.016)
+	var d0: float = (cc.target_pos - st.position).length()
+	var hit: bool = cc.preselect_sid == st.id
+	print("  M 段：预选站命中 = %s（应为 %s）　偏离 %.2f 世界单位　%s" % [
+		str(hit), str(st.id), d0, "✓" if hit and d0 < 6.0 else "✗ 没吸附上"])
+	# L 段：把目标挪到很远，看是否被夹回"**锁定站**"周围的框里。
+	# ⚠ 两个要点，都是被现实打过脸才写下来的：
+	#   1. 断言必须相对**锁定站**（preselect_sid），不能相对一开始挑的那个 st ——
+	#      挪远之后最近的站会换成邻站，拿 st 去比就会误报"没夹住"；
+	#   2. 断言必须**按分量**：x 允许 ±FORE_RANGE_X（沿站台可走）、
+	#      y 只允许 ±FORE_RANGE_Y（垂直方向夹紧 = "始终在站点里"）。
+	cc.target_zoom = cc.fore_zoom
+	cc.target_pos = st.position + Vector2(200.0, 90.0)
+	for _i in range(40):
+		cc._process(0.016)
+	var anchor_st: Station = sim.get_station(cc.preselect_sid)
+	if anchor_st == null:
+		print("  L 段：没有锁定站 ✗")
+		return
+	var dv1: Vector2 = cc.target_pos - anchor_st.position
+	var ok1: bool = absf(dv1.x) <= cc.FORE_RANGE_X + 0.5 and absf(dv1.y) <= cc.FORE_RANGE_Y + 0.5
+	print("  L 段：锁定站 %d　偏移 (%.1f, %.1f)　限值 (±%.0f, ±%.0f)　%s" % [
+		cc.preselect_sid, dv1.x, dv1.y, cc.FORE_RANGE_X, cc.FORE_RANGE_Y,
+		"✓ 夹住了" if ok1 else "✗ 没夹住"])
+
+	# M -> L：**放大要落到聚焦的那个站**（用户要求）
+	# 先回到 M 段并吸到该站，再连按几次"滚轮放大"，看最后是否停在该站附近
+	cc.target_zoom = cc.mid_zoom
+	cc.target_pos = st.position + Vector2(25.0, 10.0)
+	for _i in range(150):
+		cc._process(0.016)
+	var focused: int = cc.preselect_sid
+	for _i in range(6):
+		cc._zoom_gesture(1.2)
+	for _i in range(200):
+		cc._process(0.016)
+	var dst: Station = sim.get_station(focused)
+	var d2: float = 9999.0
+	if dst != null:
+		d2 = (cc.target_pos - dst.position).length()
+	print("  M→L 放大：聚焦站 %d　最终偏离 %.2f　%s" % [
+		focused, d2, "✓ 落在聚焦站上" if d2 <= 6.0 else "✗ 跑偏了"])
+
+
+## 操作面板可见性规则：**相机带出来的"预选"不算玩家选择**，
+## 所以从 L 缩回 M 之后不会留着一个面板（用户反馈过两次，值得钉住）。
+func _check_panel_visibility(game: Game) -> void:
+	print("--- 操作面板可见性 ---")
+	var hud: HUD = game.hud
+	if hud == null or game.sim == null or game.sim.stations.is_empty():
+		print("  !! 缺 HUD/模拟，跳过")
+		return
+	var sid: int = game.sim.stations[2].id
+	EventBus.selection_changed.emit({"type": "preselect", "id": sid})
+	print("  预选（相机带出来的）　_user_selected = %s（应 false）　%s" % [
+		str(hud._user_selected), "✓" if not hud._user_selected else "✗ 会被误当成玩家点选"])
+	EventBus.selection_changed.emit({"type": "station", "id": sid})
+	print("  玩家点选　　　　　　　_user_selected = %s（应 true）　%s" % [
+		str(hud._user_selected), "✓" if hud._user_selected else "✗"])
+	EventBus.selection_changed.emit({"type": "none", "id": -1})
+	print("  取消选择　　　　　　　_user_selected = %s（应 false）　%s" % [
+		str(hud._user_selected), "✓" if not hud._user_selected else "✗"])
+
+
+## 滑钮映射：三个锚点应分别落在滑轨的 0 / 0.5 / 1
+## （用户要求："滑钮按钮 M 视野时在滑轨的中间"）。
+func _check_slider_mapping(game: Game) -> void:
+	print("--- 视野滑钮映射 ---")
+	var vs: ViewSlider = game.hud.view_slider if game.hud != null else null
+	if vs == null:
+		print("  !! 缺滑钮，跳过")
+		return
+	var b: Vector3 = vs.bands
+	var t0: float = vs.t_of_zoom(b.x)
+	var t1: float = vs.t_of_zoom(b.y)
+	var t2: float = vs.t_of_zoom(b.z)
+	print("  H t=%.3f（应 0.0）　M t=%.3f（应 0.5）　L t=%.3f（应 1.0）　%s" % [
+		t0, t1, t2,
+		"✓" if absf(t0) < 0.02 and absf(t1 - 0.5) < 0.02 and absf(t2 - 1.0) < 0.02 else "✗ 锚点没对齐"])
+
+
 ## 运行时接线自检：把"引擎实际解析出来的东西"打出来，而不是看 .tscn/.gd 里写了什么。
 ##
 ## 为什么需要它：有两类 bug 在 Godot 里**完全静默**——
@@ -23,6 +121,9 @@ func _ready() -> void:
 	_check_hud_theme(game)
 	_check_render_wiring(game)
 	_check_train_positions(game)
+	_check_camera_bands(game)
+	_check_panel_visibility(game)
+	_check_slider_mapping(game)
 	_check_scene_completeness(game)
 	get_tree().quit(0)
 

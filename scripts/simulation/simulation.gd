@@ -313,6 +313,11 @@ func _compute_map_rect() -> Rect2:
 ##
 ## 线路已到上限时直接拒绝造站：新站必须靠同波新建的线接进线网，否则它会是
 ## 一个"永远没人能到达"的孤岛 —— 客流照常在那儿刷出来，却一辆车都不来。
+## 新线重走"旧走廊"（已存在的相邻站对）的代价倍数。
+## 3.0 是折中：够大到会优先绕开旧线，又不至于让新线跑到很远、破坏"临线接进线网"的意图。
+const REUSE_PENALTY := 3.0
+
+
 func add_infinite_station() -> int:
     if stations.is_empty():
         return -1
@@ -408,6 +413,14 @@ func _next_line_id() -> int:
 func _walk_route(near_sids: Array[int]) -> Array[int]:
     var max_leg := float(Config.INFINITE["max_leg_dist"])
     var want := randi_range(int(Config.INFINITE["line_min_stops"]), int(Config.INFINITE["line_max_stops"]))
+    # 已有"相邻站对"的集合。**新线要尽量不重走旧走廊**：这个贪心选路原本是
+    # "走到最近的未访问站"，而一个站的最近邻往往正是旧线连过的那些站，
+    # 于是新线几乎是旧线的复制 —— 画面上就是"新加入的线跟之前的线重叠"（用户反馈）。
+    # 现在重走旧走廊要乘一个代价，只有实在没有新走廊可走时才复用。
+    var used := {}
+    for ln0 in lines:
+        for i0 in range(ln0.station_ids.size() - 1):
+            used[_pair_key(int(ln0.station_ids[i0]), int(ln0.station_ids[i0 + 1]))] = true
     var start := -1
     if not near_sids.is_empty():
         start = near_sids[randi() % near_sids.size()]
@@ -424,20 +437,29 @@ func _walk_route(near_sids: Array[int]) -> Array[int]:
 
     var route: Array[int] = [start]
     while route.size() < want:
-        var cur: Station = stations[route[route.size() - 1]]
+        var cur_i: int = route[route.size() - 1]
+        var cur: Station = stations[cur_i]
         var cand := -1
-        var cand_d := INF
+        var cand_score := INF
         for i in range(stations.size()):
             if route.has(i):
                 continue
             var d := cur.position.distance_to(stations[i].position)
-            if d <= max_leg and d < cand_d:
-                cand_d = d
+            if d > max_leg:
+                continue
+            var score := d * (REUSE_PENALTY if used.has(_pair_key(cur_i, i)) else 1.0)
+            if score < cand_score:
+                cand_score = score
                 cand = i
         if cand < 0:
             break
         route.append(cand)
     return route
+
+
+## 站对的规范化键（无向）
+func _pair_key(a: int, b: int) -> String:
+    return "%d_%d" % [mini(a, b), maxi(a, b)]
 
 
 # ================= 主循环 =================
@@ -774,6 +796,13 @@ func _arrive_train(t: Train, ln: Line, k: int) -> void:
     if _try_start_coupling(t, ln, sid, st):
         t.dwell_timer = maxf(t.dwell_timer, t.couple_total)
 
+    # ---- 纯表现用的上下车标记（不参与任何判定、不影响平衡）----
+    # 为什么要它：渲染层原来靠"队列差分 + 本站是否停着车"去**猜**谁上下车，
+    # 于是必然出现"互穿"、"凭空出现一堆人"、以及做不出可靠的"先下后上"。
+    # 这里只记录**顺序与侧别**（kind: 0=下车 1=上车），位置由渲染层自己安排。
+    # 数组顺序天然就是"先下后上"（下车整段先跑完）。
+    var fx_side: int = 1 if t.direction > 0 else 0
+
     # 下车
     var alighting: Array = []
     for p in t.passengers:
@@ -794,6 +823,7 @@ func _arrive_train(t: Train, ln: Line, k: int) -> void:
             p.state = Passenger.State.WAITING
             p.station_id = sid
             st.queue.append(p)
+        st.note_pax_fx(0, fx_side)
 
     # 上车（复用上面按"发车方向"解析好的 next_sid）
     var boarders: Array = []
@@ -812,6 +842,7 @@ func _arrive_train(t: Train, ln: Line, k: int) -> void:
         p.boarded_line = t.line_id
         t.load_passenger(p)
         st.total_boarded += 1
+        st.note_pax_fx(1, fx_side)
 
 
 func _depart_train(t: Train, ln: Line, k: int) -> void:

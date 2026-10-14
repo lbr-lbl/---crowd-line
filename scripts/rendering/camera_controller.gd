@@ -32,6 +32,8 @@ const OVER_OUT_FACTOR := 0.7         # 全貌段可再缩小的比例
 const OVER_IN_FACTOR := 1.5          # 近景段可再放大的比例
 const SNAP_DELAY := 0.3              # 滚轮停下多久后回弹到锚点（秒）
 const ZOOM_SMOOTH := 11.0            # 缩放趋近速度（越大越跟手）
+## H -> M 这一段**慢一点**（用户要求两次）。M -> L 仍用上面的速率，保持跟手。
+const ZOOM_SMOOTH_SLOW := 2.2
 const PAN_SMOOTH := 9.0              # 平移趋近速度
 const CLICK_THRESHOLD := 6.0         # 点击 vs 拖拽判定（像素）
 const SHAKE_PX := 9.0               # 震屏满振幅对应的屏幕像素（够"有感觉"，不至于看不清线）
@@ -95,6 +97,35 @@ var _overshoot_vel: float = 0.0
 var follow_train_id: int = -1
 var train_source: Node = null
 
+## **预选站点**：M 视野里"离中心最近的那个站"。非横移时相机平滑吸附到它，
+## L 视野里围绕它夹取（拖动也不能离开站点）。UI 拿它做预选高亮。
+var preselect_sid: int = -1
+## 上一次播报过的预选站：只在**变化时**发信号，避免每帧刷
+var _last_preselect: int = -2
+## L 视野允许在站台周围走多远（世界单位）。**分向夹取**：
+## 沿站台方向（x）放宽，垂直方向（y）夹紧，才能既"在站点里"又能沿站台走。
+const FORE_RANGE_X := 55.0
+const FORE_RANGE_Y := 26.0
+## 近景锚点缩放：**固定 9.0**（1 世界单位 ≈ 9 屏幕像素）。
+## 站台视图的几何全是绝对世界单位，所以这个值必须固定，不能按站距算，
+## 否则每个线网的近景大小都不同（用户反馈）。
+const FORE_ZOOM_FIXED := 9.0
+## 进入近景时锁定的站点。**不每帧重算**，否则拖动会让夹取中心突然跳到邻站。
+var _fore_lock: int = -1
+
+
+func _nearest_station(p: Vector2) -> Station:
+    var best: Station = null
+    var bd := INF
+    if sim == null:
+        return null
+    for st in sim.stations:
+        var d := st.position.distance_squared_to(p)
+        if d < bd:
+            bd = d
+            best = st
+    return best
+
 
 func setup(p_camera: Camera2D, p_sim: Simulation) -> void:
     camera = p_camera
@@ -143,10 +174,17 @@ func _compute_bands() -> void:
 
     # 全貌：宽高都能装下整个地图
     overview_zoom = minf(vp.x / map_w, vp.y / map_h) * OVERVIEW_PADDING
-    # 中景：画面横向跨越 MID_SPAN 个站距
-    mid_zoom = vp.x / (MID_SPAN * avg_edge)
-    # 近景：画面横向跨越 FORE_SPAN 个站距（单站）
-    fore_zoom = vp.x / (FORE_SPAN * avg_edge)
+    # 中景：**取全貌与近景的对数中点**（`sqrt(overview * fore)`）。
+    # 目的：滑钮两半的"滚轮距离"在**任何线网**下都相等（用户反馈"似乎只有无限模式实现了"）。
+    # 原来 `vp.x / (MID_SPAN * avg_edge)` 是跟着**平均站距**走的，于是 H→M 与 M→L 的
+    # 跨度比例因线网而异：密线网里 H→M 一滚就到，稀疏线网里要滚很久。
+    mid_zoom = sqrt(maxf(overview_zoom, 0.01) * fore_zoom)
+    # 近景：**固定值**，不跟站距走（用户反馈"每个线网 L 视野的缩放比不同"）。
+    # 原因：站台视图的几何是**绝对世界单位**（`PLAT_W = 26`、`GATE_X = ±48`、
+    # `TRAIN_LEN = 120`），所以"近景一屏 = 多少世界单位"必须是常数，
+    # 否则同一套站台在不同密度的线网里会显示成不同大小。
+    # 之前是 `vp.x / (FORE_SPAN * avg_edge)`，于是缩放比随平均站间距漂移。
+    fore_zoom = FORE_ZOOM_FIXED
     _finalize_bounds()
 
 
@@ -213,7 +251,9 @@ func _process(delta: float) -> void:
 
     if snapping:
         # 回弹：指数趋近锚点
-        target_zoom = lerpf(target_zoom, snap_target_zoom, 1.0 - exp(-ZOOM_SMOOTH * delta))
+        # H -> M 慢、M -> L 跟手（用户要求"从 H 到 M 的视野变化慢一点"）
+        var zs := ZOOM_SMOOTH_SLOW if target_zoom < mid_zoom else ZOOM_SMOOTH
+        target_zoom = lerpf(target_zoom, snap_target_zoom, 1.0 - exp(-zs * delta))
         if absf(target_zoom - snap_target_zoom) < 0.0005:
             target_zoom = snap_target_zoom
             snapping = false
@@ -226,6 +266,55 @@ func _process(delta: float) -> void:
     # 3) 跟车：目标点直接钉在列车上（车在动，所以每帧更新）
     if follow_train_id >= 0 and _update_follow():
         pass
+
+    # 3.5) 视野段吸附（需求）：M 段把"离中心最近的站"视为**预选站**、非横移时平滑移到它中心；
+    #      L 段把相机**夹在预选站附近**，拖也离不开站点（轨道始终看得见）。
+    #      两者共用"预选站"，所以合在一起做。
+    preselect_sid = -1
+    if (not dragging) and (not _flying) and (not _glide) and (not zoom_focus_active) \
+            and follow_train_id < 0 and sim != null and not sim.stations.is_empty():
+        var anchor := _band_anchor(target_zoom)
+        var at_mid := absf(anchor - mid_zoom) < 0.0001
+        var at_fore := absf(anchor - fore_zoom) < 0.0001
+        if at_mid or at_fore:
+            var pst := _nearest_station(target_pos)
+            if pst != null:
+                preselect_sid = pst.id
+                if at_mid:
+                    # **回到 M 就解锁**：否则从 A 站的 L 回到 M、再进 B 站的 L 时，
+                    # 锁还停在 A，相机会被吸回 A 站（用户反馈的 bug）。
+                    _fore_lock = -1
+                    # **平滑聚焦**：未拖动时把相机收到站心。用户澄清："聚焦没有延迟"的意思是
+                    # "实时选定聚焦的站点 + 未拖动时平滑聚焦过去"，不是"瞬间跳过去"，
+                    # 所以这里保留插值，只是把速率调快（rate 14 ≈ 70ms 时间常数）。
+                    target_pos = target_pos.lerp(pst.position, 1.0 - exp(-14.0 * delta))
+                    # M 段的预选站**同时是真实选择**（用户要求：拖动聚焦应当改变选择的站点），
+                    # 但用 `preselect` 这个类型发信号 —— HUD 据此知道"这不是玩家点的"，
+                    # 于是**不会**因此在 M 视野里把操作面板常驻
+                    # （用户反馈："缩小回 M 视野时操作面板还显示着"）。
+                    if pst.id != _last_preselect:
+                        _last_preselect = pst.id
+                        sim.select_station(pst.id)
+                        EventBus.selection_changed.emit({"type": "preselect", "id": pst.id})
+                else:
+                    # L 视野：**锁定刚进入近景时的那个站**，不要每帧重算"最近站"。
+                    # 否则拖动时"最近的站"会突然换成邻站，夹取中心跟着跳一段 ——
+                    # 用户看到的就是"莫名其妙吸附到 M 视野下的其它站点"。
+                    if _fore_lock < 0:
+                        _fore_lock = pst.id
+                    var anchor_st: Station = sim.get_station(_fore_lock)
+                    if anchor_st == null:
+                        _fore_lock = pst.id
+                        anchor_st = pst
+                    preselect_sid = _fore_lock
+                    var dv := target_pos - anchor_st.position
+                    # 沿站台方向（x）放宽 —— 站台很长，本来就该能沿着走；
+                    # 垂直方向（y）夹紧 —— 保证始终"在站点里"。
+                    target_pos = anchor_st.position + Vector2(
+                        clampf(dv.x, -FORE_RANGE_X, FORE_RANGE_X),
+                        clampf(dv.y, -FORE_RANGE_Y, FORE_RANGE_Y))
+        else:
+            _fore_lock = -1
 
     # 4) 飞行：用 easeInOutCubic 走完全程，期间接管位置与缩放
     if _flying:
@@ -416,6 +505,26 @@ func _unhandled_input(event: InputEvent) -> void:
     if camera == null or sim == null:
         return
 
+    # ---- 触屏手势（需求：鼠标滚轮 -> 双指缩放，鼠标拖动 -> 触屏拖动）----
+    # 关键事实：轻点与拖动**不需要额外处理** —— Godot 默认
+    # `input_devices/pointing/emulate_mouse_from_touch = true`，触摸会直接变成鼠标事件，
+    # 所以上面那套鼠标逻辑在触屏上原样可用（这就是"共存"的基础）。
+    # 但**双指手势不会变成滚轮**：Godot 单独送 `MagnifyGesture` / `PanGesture`，必须显式接。
+    # 桌面端永远收不到这两个事件，所以这段是**纯增量**，不影响鼠标操作。
+    if event is InputEventMagnifyGesture:
+        var mg := event as InputEventMagnifyGesture
+        _zoom_gesture(mg.factor)
+        return
+    if event is InputEventPanGesture:
+        var pg := event as InputEventPanGesture
+        # 双指拖动的 delta 是屏幕像素，除以缩放换算成世界位移。
+        # 符号取"手指往哪推、画面往哪走"，与鼠标拖拽一致。
+        var z_now: float = maxf(camera.zoom.x, 0.0001)
+        target_pos -= pg.delta / z_now
+        _glide = false
+        _flying = false
+        return
+
     if event is InputEventMouseButton:
         var mb := event as InputEventMouseButton
         if mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
@@ -470,6 +579,14 @@ func _unhandled_input(event: InputEvent) -> void:
 func _zoom_gesture(factor: float) -> void:
     var screen := get_viewport().get_mouse_position()
     var before_world := _world_mouse_from(screen)
+    # 需求：M 视野里已经聚焦了某个站（preselect_sid）时，**放大要走到那个站**，
+    # 而不是鼠标所在处。做法是把"缩放锚点"换成那个站的屏幕位置 —— 于是放大过程中
+    # 该站一直钉在原处（M 段已经把它吸到画面中心），进 L 后自然就落在它身上。
+    if factor > 1.0 and preselect_sid >= 0 and sim != null:
+        var pst := sim.get_station(preselect_sid)
+        if pst != null:
+            before_world = pst.position
+            screen = camera.get_canvas_transform() * pst.position
     var new_zoom := clampf(target_zoom * factor, min_allowed_zoom, max_allowed_zoom)
     if new_zoom == target_zoom:
         return

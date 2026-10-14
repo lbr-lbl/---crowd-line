@@ -35,4 +35,7 @@ window/stretch/aspect="expand"
 [rendering]
 
 rendering_device/driver.windows="d3d12"
+; 导出 Android 的**硬前提**（否则报 "导出 Android 版本需要 ETC2/ASTC 纹理压缩格式"）。
+; 打开后 Godot 会为纹理额外生成 ETC2/ASTC 压缩版本，PCK 会变大一点，桌面端不受影响。
+textures/vram_compression/import_etc2_astc=true
 renderer/rendering_method="mobile"
